@@ -1,0 +1,29 @@
+<!--
+ This ribbon xml gets merged with any others loaded by PyXLL via
+ the pyxll:ribbon entry point.
+ -->
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" loadImage="pyxll.load_image">
+    <ribbon>
+        <tabs>
+            <tab id="pyxll" label="PyXLL">
+                <group id="PyXLLJupyter"
+                       label="Jupyter Notebook"
+                       insertAfter="Tools">
+                    <button id="PyXLLJupyterNotebook"
+                            size="large"
+                            label="Jupyter"
+                            onAction="pyxll_jupyter.pyxll.open_jupyter_notebook"
+                            image="pyxll_jupyter:resources/jupyter.png"/>
+                </group>
+            </tab>
+        </tabs>
+    </ribbon>
+    <contextMenus>
+        <contextMenu idMso="ContextMenuCell">
+            <button id="PyXLLJupyterSetSelection"
+                    label="Send to Jupyter"
+                    onAction="pyxll_jupyter.pyxll.set_selection_in_ipython"
+                    image="pyxll_jupyter:resources/jupyter.png"/>
+        </contextMenu>
+   </contextMenus>
+</customUI>
