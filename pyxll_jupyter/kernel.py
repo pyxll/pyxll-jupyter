@@ -132,8 +132,10 @@ def launch_jupyter(connection_file, cwd=None):
     # Find jupyter-notebook.exe in the Scripts path local to python.exe
     jupyter_notebook = None
     if sys.executable and os.path.basename(sys.executable) in ("python.exe", "pythonw.exe"):
-        path = os.path.join(os.path.dirname(sys.executable), "Scripts")
-        jupyter_notebook = os.path.join(path, "jupyter-notebook.exe")
+        for path in (os.path.dirname(sys.executable), os.path.join(os.path.dirname(sys.executable), "Scripts")):
+            jupyter_notebook = os.path.join(path, "jupyter-notebook.exe")
+            if os.path.exists(jupyter_notebook):
+                break
 
     # If it wasn't found look for it on the system path
     if jupyter_notebook is None or not os.path.exists(jupyter_notebook):
