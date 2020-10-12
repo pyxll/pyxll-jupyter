@@ -169,8 +169,11 @@ def launch_jupyter(connection_file, cwd=None):
     url = None
     i = 0
     while url is None and i < 25 and proc.poll() is None:
+        line = proc.stdout.readline().decode().strip()
+        if line.startswith("DEBUG"):
+            _log.debug(line)
+            continue
         i += 1
-        line = proc.stdout.readline().decode().rstrip()
         _log.info(line)
         match = re.match(".*(https?://[\w+\.]+(:\d+)?/\?token=\w+)", line)
         if match:

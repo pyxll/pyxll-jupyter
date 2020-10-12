@@ -100,7 +100,7 @@ class TabWidget(QTabWidget):
             page.setUrl(QUrl(url))
 
         def url_changed(url):
-            _log.info("Loading page: %s" % url)
+            _log.debug("Loading page '%s'" % url)
 
         page.urlChanged.connect(url_changed)
 

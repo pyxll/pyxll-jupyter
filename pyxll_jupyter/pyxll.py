@@ -69,7 +69,6 @@ def open_jupyter_notebook(*args):
 
     # The create the widget and add it as an Excel CTP
     path = get_notebook_path()
-    print("OPENING JUPTER IN %s" % path)
     widget = JupyterQtWidget(initial_path=path)
 
     create_ctp(widget, width=800)
