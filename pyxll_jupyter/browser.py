@@ -68,6 +68,21 @@ class TabWidget(QTabWidget):
         self.setDocumentMode(True)
         self.setElideMode(Qt.ElideRight)
 
+        # Set up some shortcuts
+        next_tab_sc = QShortcut(QKeySequence.fromString("Ctrl+PgUp"), self)
+        next_tab_sc.activated.connect(self.next_tab)
+
+        prev_tab_sc = QShortcut(QKeySequence.fromString("Ctrl+PgDown"), self)
+        prev_tab_sc.activated.connect(self.prev_tab)
+
+    def next_tab(self):
+        i = self.currentIndex()
+        self.setCurrentIndex((i + 1) % self.count())
+
+    def prev_tab(self):
+        i = self.currentIndex()
+        self.setCurrentIndex((i - 1) % self.count())
+
     def close_tab(self, index):
         view = self.widget(index)
         if view:
