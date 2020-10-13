@@ -84,13 +84,43 @@ def set_selection_in_ipython(*args):
         if not getattr(sys, "_ipython_app", None) or not sys._ipython_kernel_running:
             raise Exception("IPython kernel not running")
 
+        # Get the current selected range
         xl = xl_app(com_package="win32com")
         selection = xl.Selection
         if not selection:
             raise Exception("Nothing selected")
 
+        # Check to see if it looks like a pandas DataFrame
+        try_dataframe = False
+        has_index = False
+        if selection.Rows.Count > 1 and selection.Columns.Count > 1:
+            try:
+                import pandas as pd
+            except ImportError:
+                pd = None
+                pass
+
+            if pd is not None:
+                # If the top left corner is empty assume the first column is an index.
+                try_dataframe = True
+                top_left = selection.Cells[1].Value
+                if top_left is None:
+                    has_index = True
+
+        # Get an XLCell object from the range to make it easier to get the value
         cell = XLCell.from_range(selection)
-        value = cell.value
+
+        # Get the value using PyXLL's dataframe converter, or as a plain value.
+        value = None
+        if try_dataframe:
+            try:
+                type_kwargs = {"index": 1 if has_index else 0}
+                value = cell.options(type="dataframe", type_kwargs=type_kwargs).value
+            except:
+                _log.warning("Error converting selection to DataFrame", exc_info=True)
+
+        if value is None:
+            value = cell.value
 
         # set the value in the shell's locals
         sys._ipython_app.shell.user_ns["_"] = value
