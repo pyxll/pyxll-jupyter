@@ -10,16 +10,23 @@ To install this package use::
 
 """
 from .widget import JupyterQtWidget
-from .qtimports import QApplication
+from .qtimports import QApplication, QMessageBox
 from pyxll import get_config, xl_app
 import ctypes.wintypes
 import pkg_resources
-import win32api
 import logging
 import sys
 import os
 
 _log = logging.getLogger(__name__)
+
+
+def get_qt_app():
+    """Get or create the Qt application"""
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    return app
 
 
 def get_notebook_path():
@@ -63,9 +70,7 @@ def open_jupyter_notebook(*args):
     from pyxll import create_ctp
 
     # Create the Qt Application
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
+    app = get_qt_app()
 
     # The create the widget and add it as an Excel CTP
     path = get_notebook_path()
@@ -126,8 +131,8 @@ def set_selection_in_ipython(*args):
         sys._ipython_app.shell.user_ns["_"] = value
         print("\n\n>>> Selected value set as _")
     except:
-        if win32api:
-            win32api.MessageBox(None, "Error setting selection in Excel")
+        app = get_qt_app()
+        QMessageBox.warning(None, "Error", "Error setting selection in Excel")
         _log.error("Error setting selection in Excel", exc_info=True)
 
 

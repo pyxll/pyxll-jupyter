@@ -5,8 +5,13 @@ a tabbed browser widget containing the Jupyter notebook.
 from .kernel import start_kernel, launch_jupyter
 from .browser import Browser
 from .qtimports import QWidget, QVBoxLayout
-import win32gui, win32ui
 import subprocess
+
+try:
+    import win32gui, win32ui
+    _have_win32ui = True
+except ImportError:
+    _have_win32ui = False
 
 
 class JupyterQtWidget(QWidget):
@@ -18,7 +23,7 @@ class JupyterQtWidget(QWidget):
         self.proc = None
 
         # Get the scale from the window DPI
-        if scale is None:
+        if scale is None and _have_win32ui:
             LOGPIXELSX = 88
             hwnd = self.winId()
             if isinstance(hwnd, str):
