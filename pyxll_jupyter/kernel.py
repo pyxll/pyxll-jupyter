@@ -54,13 +54,37 @@ def _which(program):
     return None
 
 
+class PushStdout:
+    """Context manage to temporarily replace stdout/stderr."""
+
+    def __init__(self, stdout, stderr):
+        self.__stdout = stdout
+        self.__stderr = stderr
+
+    def __enter__(self):
+        self.__orig_stdout = sys.stdout
+        self.__orig_stderr = sys.stderr
+        sys.stdout = self.__stdout
+        sys.stderr = self.__stderr
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self.__orig_stdout
+        sys.stderr = self.__orig_stderr
+
+
 def start_kernel():
     """starts the ipython kernel and returns the ipython app"""
     if sys._ipython_app and sys._ipython_kernel_running:
         return sys._ipython_app
 
+    # The stdout/stderrs used by IPython. These get set after the kernel has started.
+    ipy_stdout = sys.stdout
+    ipy_stderr = sys.stderr
+
     # patch IPKernelApp.start so that it doesn't block
     def _IPKernelApp_start(self):
+        nonlocal ipy_stdout, ipy_stderr
+
         if self.poller is not None:
             self.poller.start()
         self.kernel.start()
@@ -70,17 +94,19 @@ def start_kernel():
 
         def poll_ioloop():
             try:
-                # if the kernel has been closed then run the event loop until it gets to the
-                # stop event added by IPKernelApp.shutdown_request
-                if self.kernel.shell.exit_now:
-                    _log.debug("IPython kernel stopping (%s)" % self.connection_file)
-                    self.loop.start()
-                    sys._ipython_kernel_running = False
-                    return
+                # Use the IPython stdout/stderr while running the kernel
+                with PushStdout(ipy_stdout, ipy_stderr):
+                    # If the kernel has been closed then run the event loop until it gets to the
+                    # stop event added by IPKernelApp.shutdown_request
+                    if self.kernel.shell.exit_now:
+                        _log.debug("IPython kernel stopping (%s)" % self.connection_file)
+                        self.loop.start()
+                        sys._ipython_kernel_running = False
+                        return
 
-                # otherwise call the event loop but stop immediately if there are no pending events
-                self.loop.add_timeout(0, lambda: self.loop.add_callback(self.loop.stop))
-                self.loop.start()
+                    # otherwise call the event loop but stop immediately if there are no pending events
+                    self.loop.add_timeout(0, lambda: self.loop.add_callback(self.loop.stop))
+                    self.loop.start()
             except:
                 _log.error("Error polling Jupyter loop", exc_info=True)
 
@@ -91,9 +117,10 @@ def start_kernel():
 
     IPKernelApp.start = _IPKernelApp_start
 
-    # IPython expects sys.__stdout__ to be set
-    sys.__stdout__ = sys.stdout
-    sys.__stderr__ = sys.stderr
+    # IPython expects sys.__stdout__ to be set, and keep the original values to
+    # be used after IPython has set its own.
+    sys.__stdout__ = sys_stdout = sys.stdout
+    sys.__stderr__ = sys_stderr = sys.stderr
 
     # call the API embed function, which will use the monkey-patched method above
     embed_kernel(local_ns={})
@@ -102,6 +129,12 @@ def start_kernel():
 
     # Keep a reference to the kernel even if this module is reloaded
     sys._ipython_app = ipy
+
+    # Restore sys stdout/stderr and keep track of the IPython versions
+    ipy_stdout = sys.stdout
+    ipy_stderr = sys.stderr
+    sys.stdout = sys_stdout
+    sys.stderr = sys_stderr
 
     # patch user_global_ns so that it always references the user_ns dict
     setattr(ipy.shell.__class__, 'user_global_ns', property(lambda self: self.user_ns))
