@@ -6,12 +6,7 @@ from .kernel import start_kernel, launch_jupyter
 from .browser import Browser
 from .qtimports import QWidget, QVBoxLayout
 import subprocess
-
-try:
-    import win32gui, win32ui
-    _have_win32ui = True
-except ImportError:
-    _have_win32ui = False
+import ctypes
 
 
 class JupyterQtWidget(QWidget):
@@ -23,16 +18,16 @@ class JupyterQtWidget(QWidget):
         self.proc = None
 
         # Get the scale from the window DPI
-        if scale is None and _have_win32ui:
+        if scale is None:
             LOGPIXELSX = 88
             hwnd = self.winId()
             if isinstance(hwnd, str):
                 hwnd = int(hwnd, 16 if hwnd.startswith("0x") else 10)
-            screen = win32gui.GetDC(hwnd)
+            screen = ctypes.windll.user32.GetDC(hwnd)
             try:
-                scale = win32ui.GetDeviceCaps(screen, LOGPIXELSX) / 96.0
+                scale = ctypes.windll.gdi32.GetDeviceCaps(screen, LOGPIXELSX) / 96.0
             finally:
-                win32gui.ReleaseDC(hwnd, screen)
+                ctypes.windll.user32.ReleaseDC(hwnd, screen)
 
         # Create the browser widget
         self.browser = Browser(self, scale=scale)
