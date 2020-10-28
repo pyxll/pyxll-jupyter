@@ -32,7 +32,7 @@ setup(
     description="Adds Jupyter notebooks to Microsoft Excel using PyXLL.",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version="0.1.7",
+    version="0.1.8",
     packages=find_packages(),
     include_package_data=True,
     package_data={
@@ -40,6 +40,10 @@ setup(
             "pyxll_jupyter/resources/ribbon.xml",
             "pyxll_jupyter/resources/jupyter.png",
         ]
+    },
+    project_urls={
+        "Source": "https://github.com/pyxll/pyxll-jupyter",
+        "Tracker": "https://github.com/pyxll/pyxll-jupyter/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
