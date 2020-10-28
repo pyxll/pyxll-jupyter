@@ -1,9 +1,38 @@
+"""
+PyXLL-Jupyter
+
+This package integrated Jupyter notebooks into Microsoft Excel.
+
+To install it, first install PyXLL (see https://www.pyxll.com).
+
+Briefly, to install PyXLL do the following::
+
+    pip install pyxll
+    pyxll install
+
+Once PyXLL is installed then installing this package will add a
+button to the PyXLL ribbon toolbar that will start a Jupyter
+notebook browser as a custom task pane in Excel.
+
+To install this package use::
+
+    pip install pyxll_jupyter
+"""
 from setuptools import setup, find_packages
+from os import path
+
+
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 
 setup(
     name="pyxll_jupyter",
     description="Adds Jupyter notebooks to Microsoft Excel using PyXLL.",
-    version="0.1.6",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    version="0.1.7",
     packages=find_packages(),
     include_package_data=True,
     package_data={
@@ -12,6 +41,11 @@ setup(
             "pyxll_jupyter/resources/jupyter.png",
         ]
     },
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: Microsoft :: Windows"
+    ],
     entry_points={
         "pyxll": [
             "modules = pyxll_jupyter.pyxll:modules",
@@ -19,7 +53,7 @@ setup(
         ]
     },
     install_requires=[
-        #"pyxll >= 5.0.0",
+        "pyxll >= 5.0.0",
         "jupyter >= 1.0.0",
         "PySide2"
     ]
