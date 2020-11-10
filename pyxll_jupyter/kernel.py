@@ -8,6 +8,7 @@ that the following is added to the pyxll.cfg file:
 [PYTHON]
 executable = <path to your python installation>/pythonw.exe
 """
+from .magic import ExcelMagics
 from ipykernel.kernelapp import IPKernelApp
 from ipykernel.embed import embed_kernel
 from zmq.eventloop import ioloop
@@ -126,6 +127,9 @@ def start_kernel():
     embed_kernel(local_ns={})
 
     ipy = IPKernelApp.instance()
+
+    # register the magic functions
+    ipy.shell.register_magics(ExcelMagics)
 
     # Keep a reference to the kernel even if this module is reloaded
     sys._ipython_app = ipy
