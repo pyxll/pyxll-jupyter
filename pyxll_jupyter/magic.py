@@ -94,6 +94,16 @@ class ExcelMagics(Magics):
             below = bottom_left.GetOffset(1, 0)
             if below.Value is not None:
                 new_bottom_left = bottom_left.End(self.xlDown)
+
+                # If the initial value is None then navigating down from it will only
+                # go to the next non-empty cell, not right to be bottom of the range.
+                # This happens if the top left cell is empty (above an index) and only
+                # that single cell is selected.
+                if selection.Count == 1 and bottom_left.Value is None:
+                    new_below = new_bottom_left.GetOffset(1, 0)
+                    if new_below.Value is not None:
+                        new_bottom_left = new_bottom_left.End(self.xlDown)
+
                 new_bottom_right = new_bottom_left.GetOffset(0, selection.Columns.Count-1)
 
                 # Check to see if we can expand to the right as well
