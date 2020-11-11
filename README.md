@@ -60,6 +60,30 @@ optional arguments:
   -x, --no-auto-resize  Don't auto-resize the range.
 ```
 
+```
+%xl_plot [-n NAME] [-c CELL] [-w WIDTH] [-h HEIGHT] figure
+
+Plot a figure to Excel in the same way as pyxll.plot.
+
+The figure is exported as an image and inserted into Excel as a Picture object.
+
+If the --name argument is used and the picture already exists then it will not
+be resized or moved.
+
+positional arguments:
+  figure                Figure to plot.
+
+optional arguments:
+  -n NAME, --name NAME  Name of the picture object in Excel to use.
+  -c CELL, --cell CELL  Address of cell to use when creating the Picture in
+                        Excel.
+  -w WIDTH, --width WIDTH
+                        Width in points to use when creating the Picture in
+                        Excel.
+  -h HEIGHT, --height HEIGHT
+                        Height in points to use when creating the Picture in
+                        Excel.
+```
 
 For more information about installing and using PyXLL see https://www.pyxll.com.
 
