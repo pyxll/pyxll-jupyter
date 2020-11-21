@@ -23,6 +23,7 @@ class JupyterQtWidget(QWidget):
             hwnd = self.winId()
             if isinstance(hwnd, str):
                 hwnd = int(hwnd, 16 if hwnd.startswith("0x") else 10)
+            hwnd = ctypes.c_size_t(hwnd)
             screen = ctypes.windll.user32.GetDC(hwnd)
             try:
                 scale = ctypes.windll.gdi32.GetDeviceCaps(screen, LOGPIXELSX) / 96.0
