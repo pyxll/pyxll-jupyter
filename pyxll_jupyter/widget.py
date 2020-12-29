@@ -11,7 +11,7 @@ import ctypes
 
 class JupyterQtWidget(QWidget):
 
-    def __init__(self, parent=None, scale=None, initial_path=None):
+    def __init__(self, parent=None, scale=None, initial_path=None, timeout=15):
         super().__init__(parent)
 
         # proc gets set to the subprocess when the jupyter is started
@@ -41,7 +41,9 @@ class JupyterQtWidget(QWidget):
 
         # Start the kernel and open Jupyter in a new tab
         app = start_kernel()
-        self.proc, url = launch_jupyter(app.connection_file, cwd=initial_path)
+        self.proc, url = launch_jupyter(app.connection_file,
+                                        cwd=initial_path,
+                                        timeout=timeout)
         self.browser.create_tab(url)
 
     def closeEvent(self, event):

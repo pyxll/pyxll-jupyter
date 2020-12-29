@@ -27,6 +27,7 @@ To configure add the following to your pyxll.cfg file (default values shown):
     [JUPYTER]
     use_workbook_dir = 0
     notebook_dir = Documents
+    timeout = 15
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
 as the current workbook.
