@@ -21,7 +21,7 @@ import os
 _log = logging.getLogger(__name__)
 
 
-def get_qt_app():
+def _get_qt_app():
     """Get or create the Qt application"""
     app = QApplication.instance()
     if app is None:
@@ -29,10 +29,8 @@ def get_qt_app():
     return app
 
 
-def get_notebook_path():
+def _get_notebook_path(cfg):
     """Return the path to open the Jupyter notebook in."""
-    cfg = get_config()
-
     # Use the path of the active workbook if use_workbook_dir is set
     use_workbook_dir = False
     if cfg.has_option("JUPYTER", "use_workbook_dir"):
@@ -63,6 +61,18 @@ def get_notebook_path():
     return buf.value
 
 
+def _get_jupyter_timeout(cfg):
+    """Return the timeout in seconds to use when starting Jupyter."""
+    timeout = 15.0
+    if cfg.has_option("JUPYTER", "timeout"):
+        try:
+            timeout = float(cfg.get("JUPYTER", "timeout"))
+            _log.debug("Using a timeout of %.1fs for starting the Jupyter notebook." % timeout)
+        except (ValueError, TypeError):
+            _log.error("Unexpected value for JUPYTER.timeout.")
+    return max(timeout, 1.0)
+
+
 def open_jupyter_notebook(*args):
     """Ribbon action function for opening the Jupyter notebook
     browser control.
@@ -70,11 +80,13 @@ def open_jupyter_notebook(*args):
     from pyxll import create_ctp
 
     # Create the Qt Application
-    app = get_qt_app()
+    app = _get_qt_app()
 
     # The create the widget and add it as an Excel CTP
-    path = get_notebook_path()
-    widget = JupyterQtWidget(initial_path=path)
+    cfg = get_config()
+    path = _get_notebook_path(cfg)
+    timeout = _get_jupyter_timeout(cfg)
+    widget = JupyterQtWidget(initial_path=path, timeout=timeout)
 
     create_ctp(widget, width=800)
 
@@ -131,7 +143,7 @@ def set_selection_in_ipython(*args):
         sys._ipython_app.shell.user_ns["_"] = value
         print("\n\n>>> Selected value set as _")
     except:
-        app = get_qt_app()
+        app = _get_qt_app()
         QMessageBox.warning(None, "Error", "Error setting selection in Excel")
         _log.error("Error setting selection in Excel", exc_info=True)
 

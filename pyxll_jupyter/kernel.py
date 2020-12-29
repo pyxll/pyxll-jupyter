@@ -14,8 +14,9 @@ from ipykernel.embed import embed_kernel
 from zmq.eventloop import ioloop
 from pyxll import schedule_call
 import subprocess
-import threading
 import logging
+import threading
+import queue
 import atexit
 import sys
 import os
@@ -158,11 +159,12 @@ def start_kernel():
     return ipy
 
 
-def launch_jupyter(connection_file, cwd=None):
+def launch_jupyter(connection_file, cwd=None, timeout=15):
     """Launch a Jupyter notebook server as a child process.
 
     :param connection_file: File for kernels to use to connect to an existing kernel.
     :param cwd: Current working directory to start the notebook in.
+    :param timeout: Timeout in seconds to wait for the Jupyter process to start.
     :return: (Popen2 instance, URL string)
     """
 
@@ -202,33 +204,64 @@ def launch_jupyter(connection_file, cwd=None):
     # Add it to the list of processes to be killed when Excel exits
     _all_jupyter_processes.append(proc)
 
-    # Find the URL to connect to from the output
-    url = None
-    i = 0
-    while url is None and i < 25 and proc.poll() is None:
-        line = proc.stdout.readline().decode().strip()
-        if line.startswith("DEBUG"):
-            _log.debug(line)
-            continue
-        i += 1
-        _log.info(line)
-        match = re.match(".*(https?://[\w+\.]+(:\d+)?/\?token=\w+)", line)
-        if match:
-            url = match.group(1)
-            break
-    else:
-        raise RuntimeError("Failed to find URL in output of jupyter-notebook command.")
+    # Monitor the output of the process in a background thread
+    def thread_func(proc, url_queue, killed_event):
+        encoding = sys.getfilesystemencoding()
+        matched_url = None
 
-    # Monitor the output in a couple of background threads
-    def thread_func():
         while proc.poll() is None:
-            _log.info(proc.stdout.readline().decode().rstrip())
+            line = proc.stdout.readline().decode(encoding, "replace").strip()
+            if line.startswith("DEBUG"):
+                _log.debug(line)
+                continue
+            _log.info(line)
+            if matched_url is None:
+                match = re.search(r"(https?://([a-z|0-9]+\.?)+(:[0-9]+)?/?\?token=[a-f|0-9]+)", line, re.I | re.A)
+                if match:
+                    matched_url = match.group(1)
+                    _log.info("Found Jupyter notebook server running on '%s'" % matched_url)
+                    url_queue.put(matched_url)
 
-    thread = threading.Thread(target=thread_func)
+        if matched_url is None and not killed_event.is_set():
+            _log.error("Jupyter notebook process ended without printing a URL.")
+            url_queue.put(None)
+
+    url_queue = queue.Queue()
+    killed_event = threading.Event()
+    thread = threading.Thread(target=thread_func, args=(proc, url_queue, killed_event))
     thread.daemon = True
     thread.start()
 
+    # Wait for the URL to be logged
+    try:
+        url = url_queue.get(timeout=timeout)
+    except queue.Empty:
+        _log.error("Timed-out waiting for the Jupyter notebook URL.")
+        url = None
+
+    if url is None:
+        if proc.poll() is None:
+            _log.debug("Killing Jupyter notebook process...")
+            killed_event.set()
+            _kill_process(proc)
+            _all_jupyter_processes.remove(proc)
+
+        if thread.is_alive():
+            _log.debug("Waiting for background thread to complete...")
+            thread.join()
+
+        raise RuntimeError("Timed-out waiting for the Jupyter notebook URL.")
+
+    # Return the proc and url
     return proc, url
+
+
+def _kill_process(proc):
+    while proc.poll() is None:
+        si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+        subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                              startupinfo=si,
+                              shell=True)
 
 
 @atexit.register
@@ -236,12 +269,13 @@ def _kill_jupyter_processes():
     """Ensure all Jupyter processes are killed."""
     global _all_jupyter_processes
     while _all_jupyter_processes:
-        proc = _all_jupyter_processes[0]
-        if proc.poll() is not None:
-            _all_jupyter_processes = _all_jupyter_processes[1:]
-            continue
-        _log.info("Killing Jupyter process %s" % proc.pid)
-        si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
-        subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                              startupinfo=si,
-                              shell=True)
+        # remove any stopped processes from _all_jupyter_processes
+        _all_jupyter_processes = [x for x in _all_jupyter_processes if x.poll() is None]
+
+        # kill any still running
+        for proc in _all_jupyter_processes:
+            _log.debug("Killing Jupyter process %s" % proc.pid)
+            si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+            subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                                  startupinfo=si,
+                                  shell=True)
