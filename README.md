@@ -2,11 +2,13 @@
 
 Integration for Jupyter notebooks and Microsoft Excel.
 
-Requires:
+## Requirements
 
 - PyXLL >= 5.0.0
 - Jupyter
 - PySide2
+
+## Installation
 
 To install this package use:
 
@@ -22,15 +24,31 @@ using the PyXLL decorators @xl_menu and @xl_macro etc.
 As the kernel runs in the existing Python interpreter in the Excel process it is not possible
 to restart the kernel or to use other Python versions or other languages.
 
+## Configuration
+
 To configure add the following to your pyxll.cfg file (default values shown):
 
     [JUPYTER]
     use_workbook_dir = 0
     notebook_dir = Documents
     timeout = 15
+    qt = PySide2
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
 as the current workbook.
+
+### Qt
+
+The pyxll-jupyter package uses the Qt [QWebEngineView](https://doc.qt.io/qt-5/qwebengineview.html) widget, and by
+default will use the [PySide2](https://pypi.org/project/PySide2/) package.
+
+This can be changed to use [PyQt5](https://www.riverbankcomputing.com/software/pyqt/) by setting `qt = PyQt5` in
+the `JUPYTER` section of the config. You will need to have both the `pyqt5` and `pyqtwebengine` packages installed
+if using this option. Both can be installed using pip as follows:
+
+    pip install pyqt5 pyqtwebengine
+
+## Magic Functions
 
 The following magic functions are available in addition to the standard Jupyter magic functions:
 
