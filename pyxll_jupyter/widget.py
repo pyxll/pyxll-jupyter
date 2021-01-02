@@ -11,7 +11,7 @@ import ctypes
 
 class JupyterQtWidget(QWidget):
 
-    def __init__(self, parent=None, scale=None, initial_path=None, timeout=15):
+    def __init__(self, parent=None, scale=None, initial_path=None, timeout=30):
         super().__init__(parent)
 
         # proc gets set to the subprocess when the jupyter is started

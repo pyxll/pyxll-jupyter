@@ -63,7 +63,7 @@ def _get_notebook_path(cfg):
 
 def _get_jupyter_timeout(cfg):
     """Return the timeout in seconds to use when starting Jupyter."""
-    timeout = 15.0
+    timeout = 30.0
     if cfg.has_option("JUPYTER", "timeout"):
         try:
             timeout = float(cfg.get("JUPYTER", "timeout"))

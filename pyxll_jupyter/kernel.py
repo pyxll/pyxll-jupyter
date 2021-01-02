@@ -159,7 +159,7 @@ def start_kernel():
     return ipy
 
 
-def launch_jupyter(connection_file, cwd=None, timeout=15):
+def launch_jupyter(connection_file, cwd=None, timeout=30):
     """Launch a Jupyter notebook server as a child process.
 
     :param connection_file: File for kernels to use to connect to an existing kernel.
@@ -248,7 +248,9 @@ def launch_jupyter(connection_file, cwd=None, timeout=15):
 
         if thread.is_alive():
             _log.debug("Waiting for background thread to complete...")
-            thread.join()
+            thread.join(timeout=1)
+            if thread.is_alive():
+                _log.warning("Timed out waiting for background thread.")
 
         raise RuntimeError("Timed-out waiting for the Jupyter notebook URL.")
 
@@ -257,25 +259,22 @@ def launch_jupyter(connection_file, cwd=None, timeout=15):
 
 
 def _kill_process(proc):
-    while proc.poll() is None:
-        si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
-        subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+    """Kill a process using 'taskkill /F /T'."""
+    if proc.poll() is not None:
+        return
+
+    si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+    retcode = subprocess.call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
                               startupinfo=si,
                               shell=True)
+    if proc.poll() is None:
+        _log.warning("Failed to kill Jupyter process %d: %s" % (proc.pid, retcode))
 
 
 @atexit.register
 def _kill_jupyter_processes():
     """Ensure all Jupyter processes are killed."""
     global _all_jupyter_processes
-    while _all_jupyter_processes:
-        # remove any stopped processes from _all_jupyter_processes
-        _all_jupyter_processes = [x for x in _all_jupyter_processes if x.poll() is None]
-
-        # kill any still running
-        for proc in _all_jupyter_processes:
-            _log.debug("Killing Jupyter process %s" % proc.pid)
-            si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
-            subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                                  startupinfo=si,
-                                  shell=True)
+    for proc in _all_jupyter_processes:
+        _kill_process(proc)
+    _all_jupyter_processes = [x for x in _all_jupyter_processes if x.poll() is None]
