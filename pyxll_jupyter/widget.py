@@ -7,15 +7,23 @@ from .browser import Browser
 from .qtimports import QWidget, QVBoxLayout
 import subprocess
 import ctypes
+import os
 
 
 class JupyterQtWidget(QWidget):
 
-    def __init__(self, parent=None, scale=None, initial_path=None, timeout=30):
+    def __init__(self, parent=None, scale=None, initial_path=None, timeout=30, notebook_path=None):
         super().__init__(parent)
 
         # proc gets set to the subprocess when the jupyter is started
         self.proc = None
+
+        notebook = None
+        if notebook_path is not None:
+            if initial_path is not None:
+                raise RuntimeError("'notebook_path' and 'initial_path' cannot be set together.")
+            initial_path = os.path.dirname(notebook_path)
+            notebook = os.path.basename(notebook_path)
 
         # Get the scale from the window DPI
         if scale is None:
@@ -44,6 +52,12 @@ class JupyterQtWidget(QWidget):
         self.proc, url = launch_jupyter(app.connection_file,
                                         cwd=initial_path,
                                         timeout=timeout)
+
+        # Update the URL to point to the notebook
+        if notebook is not None:
+            root, params = url.split("?", 1)
+            url = root.rstrip("/") + "/notebooks/" + notebook + "?" + params
+
         self.browser.create_tab(url)
 
     def closeEvent(self, event):
