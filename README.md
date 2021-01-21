@@ -5,7 +5,8 @@ Integration for Jupyter notebooks and Microsoft Excel.
 ## Requirements
 
 - PyXLL >= 5.0.0
-- Jupyter
+- Jupyter >= 1.0.0
+- notebook >= 6.0.0
 - PySide2
 
 ## Installation

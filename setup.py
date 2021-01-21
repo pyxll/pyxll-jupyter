@@ -32,7 +32,7 @@ setup(
     description="Adds Jupyter notebooks to Microsoft Excel using PyXLL.",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version="0.1.15",
+    version="0.1.16",
     packages=find_packages(),
     include_package_data=True,
     package_data={
@@ -59,6 +59,7 @@ setup(
     install_requires=[
         "pyxll >= 5.0.0",
         "jupyter >= 1.0.0",
+        "notebook >= 6.0.0",
         "PySide2"
     ]
 )
