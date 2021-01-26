@@ -11,7 +11,8 @@ To install this package use::
 """
 from .widget import JupyterQtWidget
 from .qtimports import QApplication, QMessageBox
-from pyxll import xlcAlert, get_config, xl_app, xl_macro
+from pyxll import xlcAlert, get_config, xl_app, xl_macro, schedule_call
+from functools import partial
 import ctypes.wintypes
 import pkg_resources
 import logging
@@ -199,10 +200,13 @@ def OpenJupyterNotebook(path=None):
             elif os.path.isfile(path):
                 notebook_path = path
             else:
-                raise RuntimeError(f"Something wrong with {path}")
+                raise RuntimeError(f"Something is wrong with {path}")
 
-        open_jupyter_notebook(initial_path=initial_path,
-                              notebook_path=notebook_path)
+        # Use schedule_call to actually open the notebook since if this was called
+        # from a Workbook.Open macro Excel may not yet be ready to open a CTP.
+        schedule_call(partial(open_jupyter_notebook,
+                                initial_path=initial_path,
+                                notebook_path=notebook_path))
 
         return True
     except Exception as e:
