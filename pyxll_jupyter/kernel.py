@@ -13,6 +13,7 @@ from ipykernel.kernelapp import IPKernelApp
 from ipykernel.embed import embed_kernel
 from zmq.eventloop import ioloop
 from pyxll import schedule_call
+import importlib.util
 import subprocess
 import logging
 import threading
@@ -159,6 +160,45 @@ def start_kernel():
     return ipy
 
 
+def _find_jupyter_script():
+    """Returns the path to 'jupyter-notebook-script.py' used to start
+    the Jupyter notebook server. Returns None if the script can't be found.
+    """
+    # Look for it using importlib first
+    spec = importlib.util.find_spec("jupyter-notebook-script")
+    if spec is not None and spec.origin and os.path.exists(spec.origin):
+        return os.path.abspath(spec.origin)
+
+    # If that doesn't work look in the Scripts folder
+    if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
+        path = os.path.join(os.path.dirname(sys.executable), "Scripts", "jupyter-notebook-script.py")
+        if os.path.exists(path):
+            return os.path.abspath(path)
+
+    return None
+
+
+def _find_jupyter_cmd():
+    """Find the 'jupyter-notebook' executable or bat file.
+    Returns None if it can't be found.
+    """
+    # Look in the python folder and in the scripts folder
+    if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
+        for ext in (".exe", ".bat"):
+            for path in (os.path.dirname(sys.executable), os.path.join(os.path.dirname(sys.executable), "Scripts")):
+                jupyter_cmd = os.path.join(path, "jupyter-notebook" + ext)
+                if os.path.exists(jupyter_cmd):
+                    return os.path.abspath(jupyter_cmd)
+
+    # If it wasn't found look for it on the system path
+    for ext in (".exe", ".bat"):
+        jupyter_cmd = _which("jupyter-notebook" + ext)
+        if jupyter_cmd is not None and os.path.exists(jupyter_cmd):
+            return os.path.abspath(jupyter_cmd)
+
+    return None
+
+
 def launch_jupyter(connection_file, cwd=None, timeout=30):
     """Launch a Jupyter notebook server as a child process.
 
@@ -167,37 +207,49 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
     :param timeout: Timeout in seconds to wait for the Jupyter process to start.
     :return: (Popen2 instance, URL string)
     """
+    cmd = []
+    pythonpath = list(sys.path)
 
-    # Find jupyter-notebook.exe in the Scripts path local to python.exe
-    jupyter_notebook = None
-    if sys.executable and os.path.basename(sys.executable) in ("python.exe", "pythonw.exe"):
-        for path in (os.path.dirname(sys.executable), os.path.join(os.path.dirname(sys.executable), "Scripts")):
-            jupyter_notebook = os.path.join(path, "jupyter-notebook.exe")
-            if os.path.exists(jupyter_notebook):
-                break
+    if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
+        python = os.path.join(os.path.dirname(sys.executable), "python.exe")
+        if os.path.exists(python):
+            jupyter_script = _find_jupyter_script()
+            if jupyter_script:
+                module, _ = os.path.splitext(os.path.basename(jupyter_script))
+                pythonpath.insert(0, os.path.dirname(jupyter_script))
+                cmd.extend([python, "-m", module])
+                _log.debug("Using Jupyter script '%s'" % jupyter_script)
 
-    # If it wasn't found look for it on the system path
-    if jupyter_notebook is None or not os.path.exists(jupyter_notebook):
-        jupyter_notebook = _which("jupyter-notebook.exe")
-
-    if jupyter_notebook is None or not os.path.exists(jupyter_notebook):
-        raise Exception("jupyter-notebook.exe not found")
+    if not cmd:
+        jupyter_cmd = _find_jupyter_cmd()
+        if not jupyter_cmd:
+            raise RuntimeError("jupyter-notebook command not found")
+        cmd.append(jupyter_cmd)
+        _log.debug("Using Jupyter command '%s'" % jupyter_cmd)
 
     # Use the current python path when launching
     env = dict(os.environ)
-    env["PYTHONPATH"] = ";".join(sys.path)
+    env["PYTHONPATH"] = ";".join(pythonpath)
 
     # Set PYXLL_IPYTHON_CONNECTION_FILE so the manager knows what to connect to
     env["PYXLL_IPYTHON_CONNECTION_FILE"] = connection_file
 
     # run jupyter in it's own process
-    cmd = [
-        jupyter_notebook,
+    cmd.extend([
         "--NotebookApp.kernel_manager_class=pyxll_jupyter.extipy.ExternalIPythonKernelManager",
         "--no-browser",
         "-y"
-    ]
-    proc = subprocess.Popen(cmd, cwd=cwd, env=env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    ])
+
+    si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+    proc = subprocess.Popen(cmd,
+                            cwd=cwd,
+                            env=env,
+                            shell=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            startupinfo=si)
+
     if proc.poll() is not None:
         raise Exception("Command '%s' failed to start" % " ".join(cmd))
 
