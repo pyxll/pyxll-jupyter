@@ -12,11 +12,13 @@ from .magic import ExcelMagics
 from ipykernel.kernelapp import IPKernelApp
 from ipykernel.embed import embed_kernel
 from zmq.eventloop import ioloop
-from pyxll import schedule_call
+from pyxll import schedule_call, get_config
+import pyxll
 import importlib.util
 import subprocess
 import threading
 import logging
+import ctypes
 import atexit
 import types
 import queue
@@ -60,6 +62,53 @@ def _which(program):
                 return exe_file
 
     return None
+
+
+def _get_excel_path():
+    """Run the path of the Excel executable"""
+    buffer_len = 260
+    buffer = ctypes.create_unicode_buffer(buffer_len)
+    num_chars = ctypes.windll.kernel32.GetModuleFileNameW(None, buffer, buffer_len)
+    while num_chars >= 0 and buffer_len <= num_chars:
+        print(f"num_chars = {num_chars}; buffer_len = {buffer_len}")
+        buffer_len += 260
+        buffer = ctypes.create_unicode_buffer(buffer_len)
+        num_chars = ctypes.windll.kernel32.GetModuleFileNameW(None, buffer, buffer_len)
+
+    if num_chars <= 0:
+        error = ctypes.windll.kernel32.GetLastError()
+        raise RuntimeError(f"Error getting Excel executable path: {error}")
+
+    return buffer.value
+
+
+def _get_connection_dir(app):
+    """Gets the connection dir to use for the IPKernelApp"""
+    connection_dir = None
+
+    # Check the pyxll config first
+    cfg = get_config()
+    if cfg.has_option("JUPYTER", "runtime_dir"):
+        connection_dir = cfg.get("JUPYTER", "runtime_dir")
+        if not os.path.abspath(connection_dir):
+            connection_dir = os.path.join(os.path.dirname(pyxll.__file__), connection_dir)
+
+    # If not set in the pyxll config use the default from the kernel
+    if not connection_dir:
+        connection_dir = app.connection_dir
+
+    # If Excel is installed as a UWP then AppData will appear as a different folder when the
+    # child Python process is run so use a different path.
+    excel_path = _get_excel_path()
+    if "WindowsApps" in re.split(r"[/\\]+", excel_path):
+        _log.debug("Excel looks like a UWP app.")
+        if "AppData" in re.split(r"[/\\]+", connection_dir):
+            connection_dir = os.path.join(os.path.dirname(pyxll.__file__), ".jupyter", "runtime")
+            _log.warning("Jupyter's runtime directory is in AppData but Excel is installed as a UWP. ")
+            _log.warning(f"{connection_dir} will be used instead.")
+            _log.warning("Set 'runtime_dir' in the '[JUPYTER]' section of your pyxll.cfg to change this directory.")
+
+    return connection_dir
 
 
 class PushStdout:
@@ -130,10 +179,16 @@ def start_kernel():
     sys.__stdout__ = sys_stdout = sys.stdout
     sys.__stderr__ = sys_stderr = sys.stderr
 
+    # Get or create the IPKernelApp instance and set the 'connection_dir' property
+    if IPKernelApp.initialized():
+        ipy = IPKernelApp.instance()
+    else:
+        ipy = IPKernelApp.instance(local_ns={})
+        ipy.connection_dir = _get_connection_dir(ipy)
+        ipy.initialize([])
+
     # call the API embed function, which will use the monkey-patched method above
     embed_kernel(local_ns={})
-
-    ipy = IPKernelApp.instance()
 
     # register the magic functions
     ipy.shell.register_magics(ExcelMagics)

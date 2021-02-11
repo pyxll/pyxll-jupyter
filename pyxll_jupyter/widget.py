@@ -6,8 +6,11 @@ from .kernel import start_kernel, launch_jupyter
 from .browser import Browser
 from .qtimports import QWidget, QVBoxLayout
 import subprocess
+import logging
 import ctypes
 import os
+
+_log = logging.getLogger(__name__)
 
 
 class JupyterQtWidget(QWidget):
@@ -49,7 +52,10 @@ class JupyterQtWidget(QWidget):
 
         # Start the kernel and open Jupyter in a new tab
         app = start_kernel()
-        self.proc, url = launch_jupyter(app.connection_file,
+        connection_file = os.path.abspath(app.abs_connection_file)
+        _log.debug(f"Kernel started with connection file '{connection_file}'")
+
+        self.proc, url = launch_jupyter(connection_file,
                                         cwd=initial_path,
                                         timeout=timeout)
 
