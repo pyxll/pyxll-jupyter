@@ -31,10 +31,16 @@ class ExternalIPythonKernelManager(MappingKernelManager):
             setattr(kernel, port_name, 0)
 
         # Connect to kernel started by PyXLL
-        connection_dir = os.path.join(os.environ["APPDATA"], "jupyter", "runtime")
-        connection_fname = os.environ["PYXLL_IPYTHON_CONNECTION_FILE"]
-        _log.info(f'PyXLL IPython kernel = {connection_dir}/{connection_fname}')
-        kernel.load_connection_file(os.path.join(connection_dir, connection_fname))
+        connection_file = os.environ["PYXLL_IPYTHON_CONNECTION_FILE"]
+        if not os.path.abspath(connection_file):
+            connection_dir = os.path.join(os.environ["APPDATA"], "jupyter", "runtime")
+            connection_file = os.path.join(connection_dir, connection_file)
+
+        if not os.path.exists(connection_file):
+            _log.warning(f"Jupyter connection file '{connection_file}' does not exist.")
+
+        _log.info(f'PyXLL IPython kernel = {connection_file}')
+        kernel.load_connection_file(connection_file)
 
     async def start_kernel(self, **kwargs):
         """Maybe switch to the kernel started by PyXLL.
