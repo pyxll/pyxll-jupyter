@@ -65,7 +65,8 @@ class JupyterQtWidget(QWidget):
         # doesn't terminate any child processes)
         if self.proc is not None:
             while self.proc.poll() is None:
-                si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+                si = subprocess.STARTUPINFO()
+                si.wShowWindow = subprocess.SW_HIDE
                 subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(self.proc.pid)],
                                       startupinfo=si,
                                       shell=True)
