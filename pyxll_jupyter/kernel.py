@@ -242,7 +242,7 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
     ])
 
     si = subprocess.STARTUPINFO()
-    si.wShowWindow=subprocess.SW_HIDE
+    si.wShowWindow = subprocess.SW_HIDE
     proc = subprocess.Popen(cmd,
                             cwd=cwd,
                             env=env,
