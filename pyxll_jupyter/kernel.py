@@ -316,7 +316,8 @@ def _kill_process(proc):
     if proc.poll() is not None:
         return
 
-    si = subprocess.STARTUPINFO(wShowWindow=subprocess.SW_HIDE)
+    si = subprocess.STARTUPINFO()
+    si.wShowWindow(subprocess.SW_HIDE)
     retcode = subprocess.call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
                               startupinfo=si,
                               shell=True)
