@@ -28,8 +28,12 @@ _log = logging.getLogger(__name__)
 _all_jupyter_processes = []
 
 try:
+    # pywintypes needs to be imported before win32api for some Python installs.
+    # See https://github.com/mhammond/pywin32/issues/1399
+    import pywintypes
     import win32api
 except ImportError:
+    pywintypes = None
     win32api = None
 
 if getattr(sys, "_ipython_kernel_running", None) is None:
@@ -289,6 +293,13 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
     # Use the current python path when launching
     env = dict(os.environ)
     env["PYTHONPATH"] = ";".join(pythonpath)
+
+    # Workaround for bug in win32api
+    # https://github.com/mhammond/pywin32/issues/1399
+    if pywintypes is not None:
+        path = env.get("PATH", "").split(";")
+        path.insert(0, os.path.dirname(pywintypes.__file__))
+        env["PATH"] = ";".join(path)
 
     # Set PYXLL_IPYTHON_CONNECTION_FILE so the manager knows what to connect to
     env["PYXLL_IPYTHON_CONNECTION_FILE"] = connection_file
