@@ -15,10 +15,11 @@ from zmq.eventloop import ioloop
 from pyxll import schedule_call
 import importlib.util
 import subprocess
-import logging
 import threading
-import queue
+import logging
 import atexit
+import types
+import queue
 import sys
 import os
 import re
@@ -178,6 +179,58 @@ def _find_jupyter_script():
     return None
 
 
+def _get_jupyter_python_script():
+    """Try to determine a Python command that will start the Jupyter notebook.
+    Returns None if the entry point wasn't found or couldn't be turned
+    into a Python command.
+    """
+    try:
+        from importlib.metadata import distribution
+
+        def load_entry_point(spec, group, name):
+            dist_name, _, _ = spec.partition('==')
+            matches = (
+                entry_point
+                for entry_point in distribution(dist_name).entry_points
+                if entry_point.group == group and entry_point.name == name
+            )
+            return next(matches).load()
+    except ImportError:
+        load_entry_point = None
+
+    if load_entry_point is None:
+        try:
+            from pkg_resources import load_entry_point
+        except ImportError:
+            load_entry_point = None
+
+    if load_entry_point is None:
+        _log.debug("Unable to find load_entry_point to start the notebook server.")
+        return
+
+    try:
+        ep = load_entry_point("notebook", "console_scripts", "jupyter-notebook")
+        if ep is None:
+            _log.debug("Entry point notebook.console_scripts.jupyter-notebook not found.")
+            return
+    except:
+        _log.debug("Error loading jupyter-notebook entry point/", exc_info=True)
+        return
+
+    try:
+        if not isinstance(ep, types.MethodType) or not isinstance(ep.__self__, type):
+            _log.debug(f"Unexpected type for jupyter-notebook entry point: {ep}")
+            return
+
+        return "; ".join((
+            "import sys",
+            f"from {ep.__self__.__module__} import {ep.__self__.__name__}",
+            f"sys.exit({ep.__self__.__name__}.{ep.__name__}())"
+        ))
+    except:
+        _log.debug("Unexpected error getting jupyter-notebook entry point", exc_info=True)
+
+
 def _find_jupyter_cmd():
     """Find the 'jupyter-notebook' executable or bat file.
     Returns None if it can't be found.
@@ -219,6 +272,12 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
                 pythonpath.insert(0, os.path.dirname(jupyter_script))
                 cmd.extend([python, "-m", module])
                 _log.debug("Using Jupyter script '%s'" % jupyter_script)
+
+        if not cmd:
+            python_cmd = _get_jupyter_python_script()
+            if python_cmd:
+                cmd.extend([python, "-c", python_cmd])
+                _log.debug("Using Jupyter command '%s'" % python_cmd)
 
     if not cmd:
         jupyter_cmd = _find_jupyter_cmd()
