@@ -87,7 +87,7 @@ class ExcelMagics(Magics):
 
         # Expand the range if possible
         if not args.no_auto_resize:
-            top_left = selection.Cells[1]
+            top_left = selection.Cells.Item(1)
             bottom_left = top_left.GetOffset(selection.Rows.Count-1, 0)
             bottom_right = top_left.GetOffset(selection.Rows.Count-1, selection.Columns.Count-1)
 
@@ -136,7 +136,7 @@ class ExcelMagics(Magics):
             if pd is not None:
                 # If the top left corner is empty assume the first column is an index.
                 try_dataframe = True
-                top_left = selection.Cells[1].Value
+                top_left = selection.Cells.Item(1).Value
                 if top_left is None:
                     has_index = True
 
