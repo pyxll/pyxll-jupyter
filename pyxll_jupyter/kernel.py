@@ -273,7 +273,7 @@ def _get_jupyter_python_script():
             _log.debug("Entry point notebook.console_scripts.jupyter-notebook not found.")
             return
     except:
-        _log.debug("Error loading jupyter-notebook entry point/", exc_info=True)
+        _log.debug("Error loading jupyter-notebook entry point.", exc_info=True)
         return
 
     try:
