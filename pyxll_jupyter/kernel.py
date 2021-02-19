@@ -311,14 +311,27 @@ def _find_jupyter_cmd():
     return None
 
 
-def launch_jupyter(connection_file, cwd=None, timeout=30):
-    """Launch a Jupyter notebook server as a child process.
+def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser=False):
+    """Start the IPython kernel and launch a Jupyter notebook server as a child process.
 
-    :param connection_file: File for kernels to use to connect to an existing kernel.
-    :param cwd: Current working directory to start the notebook in.
+    :param initial_path: Directory to start Jupyter in
+    :param notebook_path: Path of notebook to open.
     :param timeout: Timeout in seconds to wait for the Jupyter process to start.
+    :param no_browser: Don't open a web browser if False.
     :return: (Popen2 instance, URL string)
     """
+    notebook = None
+    if notebook_path is not None:
+        if initial_path is not None:
+            raise RuntimeError("'notebook_path' and 'initial_path' cannot be set together.")
+        initial_path = os.path.dirname(notebook_path)
+        notebook = os.path.basename(notebook_path)
+
+    # Start the kernel and open Jupyter in a new tab
+    app = start_kernel()
+    connection_file = os.path.abspath(app.abs_connection_file)
+    _log.debug(f"Kernel started with connection file '{connection_file}'")
+
     cmd = []
     pythonpath = list(sys.path)
 
@@ -359,17 +372,19 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
     # Set PYXLL_IPYTHON_CONNECTION_FILE so the manager knows what to connect to
     env["PYXLL_IPYTHON_CONNECTION_FILE"] = connection_file
 
-    # run jupyter in it's own process
+    if no_browser:
+        cmd.append("--no-browser")
+
     cmd.extend([
         "--NotebookApp.kernel_manager_class=pyxll_jupyter.extipy.ExternalIPythonKernelManager",
-        "--no-browser",
         "-y"
     ])
 
+    # run jupyter in it's own process
     si = subprocess.STARTUPINFO()
     si.wShowWindow = subprocess.SW_HIDE
     proc = subprocess.Popen(cmd,
-                            cwd=cwd,
+                            cwd=initial_path,
                             env=env,
                             shell=True,
                             stdout=subprocess.PIPE,
@@ -431,6 +446,11 @@ def launch_jupyter(connection_file, cwd=None, timeout=30):
                 _log.warning("Timed out waiting for background thread.")
 
         raise RuntimeError("Timed-out waiting for the Jupyter notebook URL.")
+
+    # Update the URL to point to the notebook
+    if notebook is not None:
+        root, params = url.split("?", 1)
+        url = root.rstrip("/") + "/notebooks/" + notebook + "?" + params
 
     # Return the proc and url
     return proc, url

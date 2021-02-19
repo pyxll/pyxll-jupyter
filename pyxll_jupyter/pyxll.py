@@ -9,8 +9,8 @@ To install this package use::
     pip install pyxll_jupyter
 
 """
-from .widget import JupyterQtWidget
-from .qtimports import QApplication, QMessageBox
+from .widgets import JupyterQtWidget, QApplication, QMessageBox
+from .kernel import launch_jupyter
 from pyxll import xlcAlert, get_config, xl_app, xl_macro, schedule_call
 from functools import partial
 import ctypes.wintypes
@@ -74,15 +74,12 @@ def _get_jupyter_timeout(cfg):
     return max(timeout, 1.0)
 
 
-def open_jupyter_notebook(*args, initial_path=None, notebook_path=None):
-    """Ribbon action function for opening the Jupyter notebook
-    browser control.
+def _get_notebook_kwargs(initial_path=None, notebook_path=None):
+    """Get the kwargs for calling launch_jupyter.
 
     :param initial_path: Path to open Jupyter in.
     :param notebook_path: Path of Jupyter notebook to open.
     """
-    from pyxll import create_ctp
-
     if initial_path is not None and notebook_path is not None:
         raise RuntimeError("'initial_path' and 'notebook_path' cannot both be set.")
 
@@ -93,10 +90,6 @@ def open_jupyter_notebook(*args, initial_path=None, notebook_path=None):
             raise RuntimeError("Notebook path '%s' is not a file." % notebook_path)
         notebook_path = os.path.abspath(notebook_path)
 
-    # Create the Qt Application
-    app = _get_qt_app()
-
-    # The create the widget and add it as an Excel CTP
     cfg = get_config()
     timeout = _get_jupyter_timeout(cfg)
 
@@ -107,11 +100,41 @@ def open_jupyter_notebook(*args, initial_path=None, notebook_path=None):
     if initial_path and not os.path.isdir(initial_path):
         raise RuntimeError("Path '%s' is not a directory.")
 
-    widget = JupyterQtWidget(initial_path=initial_path,
-                             timeout=timeout,
-                             notebook_path=notebook_path)
+    return {
+        "initial_path": initial_path,
+        "notebook_path": notebook_path,
+        "timeout": timeout
+    }
 
+
+def open_jupyter_notebook(*args, initial_path=None, notebook_path=None):
+    """Ribbon action function for opening the Jupyter notebook
+    browser control in a custom task pane.
+
+    :param initial_path: Path to open Jupyter in.
+    :param notebook_path: Path of Jupyter notebook to open.
+    """
+    from pyxll import create_ctp
+
+    # Get the Qt Application
+    app = _get_qt_app()
+
+    # Create the Jupyter web browser widget
+    kwargs = _get_notebook_kwargs(initial_path=initial_path, notebook_path=notebook_path)
+    widget = JupyterQtWidget(**kwargs)
+
+    # Show it in a CTP
     create_ctp(widget, width=800)
+
+
+def open_jupyter_notebook_in_browser(*args, initial_path=None, notebook_path=None):
+    """Ribbon action function for opening the Jupyter notebook in a web browser.
+
+    :param initial_path: Path to open Jupyter in.
+    :param notebook_path: Path of Jupyter notebook to open.
+    """
+    kwargs = _get_notebook_kwargs(initial_path=initial_path, notebook_path=notebook_path)
+    launch_jupyter(no_browser=False, **kwargs)
 
 
 def set_selection_in_ipython(*args):

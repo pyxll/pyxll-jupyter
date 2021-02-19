@@ -9,11 +9,18 @@
                 <group id="PyXLLJupyter"
                        label="Jupyter Notebook"
                        insertAfter="Tools">
-                    <button id="PyXLLJupyterNotebook"
-                            size="large"
-                            label="Jupyter"
-                            onAction="pyxll_jupyter.pyxll.open_jupyter_notebook"
-                            image="pyxll_jupyter:resources/jupyter.png"/>
+                    <splitButton id="PyXLLJupyterNotebook" size="large">
+                        <menu id="menu">
+                            <button id="PyXLLJupyterNotebook_CTP"
+                                    label="Jupyter"
+                                    image="pyxll_jupyter:resources/jupyter.png"
+                                    onAction="pyxll_jupyter.pyxll.open_jupyter_notebook"/>
+                            <button id="PyXLLJupyterNotebook_Browser"
+                                    label="Open in Browser"
+                                    image="pyxll_jupyter:resources/browser.png"
+                                    onAction="pyxll_jupyter.pyxll.open_jupyter_notebook_in_browser"/>
+                        </menu>
+                    </splitButton>
                 </group>
             </tab>
         </tabs>
