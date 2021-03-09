@@ -2,6 +2,8 @@
 
 Integration for Jupyter notebooks and Microsoft Excel.
 
+See the [Python Jupyter Notebooks in Excel](https://www.pyxll.com/blog/python-jupyter-notebooks-in-excel/) blog post for more details.
+
 ## Requirements
 
 - PyXLL >= 5.0.0
