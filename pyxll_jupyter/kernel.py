@@ -382,14 +382,27 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
 
     # run jupyter in it's own process
     si = subprocess.STARTUPINFO()
-    si.wShowWindow = subprocess.SW_HIDE
+    si.wShowWindow |= subprocess.SW_HIDE
+
+    # Run the exe directly if possible without a cmd child process.
+    # This avoids a permission error when trying to run 'cmd' as a child process.
+    shell = True
+    popen_kwargs = {}
+    exe = cmd[0]
+    if "." in exe and exe.rsplit(".", 1)[-1].lower() == "exe":
+        shell = False
+        popen_kwargs["executable"] = exe
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW | 1
+        cmd = [os.path.basename(exe)] + cmd[1:]
+
     proc = subprocess.Popen(cmd,
                             cwd=initial_path,
                             env=env,
-                            shell=True,
+                            shell=shell,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
-                            startupinfo=si)
+                            startupinfo=si,
+                            **popen_kwargs)
 
     if proc.poll() is not None:
         raise Exception("Command '%s' failed to start" % " ".join(cmd))
@@ -404,6 +417,8 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
 
         while proc.poll() is None:
             line = proc.stdout.readline().decode(encoding, "replace").strip()
+            if not line:
+                continue
             if line.startswith("DEBUG"):
                 _log.debug(line)
                 continue
@@ -436,7 +451,7 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
         if proc.poll() is None:
             _log.debug("Killing Jupyter notebook process...")
             killed_event.set()
-            _kill_process(proc)
+            kill_process(proc)
             _all_jupyter_processes.remove(proc)
 
         if thread.is_alive():
@@ -456,18 +471,87 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
     return proc, url
 
 
-def _kill_process(proc):
-    """Kill a process using 'taskkill /F /T'."""
+def kill_process(proc):
+    """Kill a process and its children.
+
+    :param proc: Popen process object
+    """
     if proc.poll() is not None:
         return
 
-    si = subprocess.STARTUPINFO()
-    si.wShowWindow = subprocess.SW_HIDE
-    retcode = subprocess.call(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                              startupinfo=si,
-                              shell=True)
-    if proc.poll() is None:
-        _log.warning("Failed to kill Jupyter process %d: %s" % (proc.pid, retcode))
+    # Use CreateToolhelp32Snapshot to find child processes
+    _TH32CS_SNAPPROCESS = 0x00000002
+    _PROCESS_TERMINATE = 0x0001
+
+    class _PROCESSENTRY32(ctypes.Structure):
+        _fields_ = [("dwSize", ctypes.c_ulong),
+                    ("cntUsage", ctypes.c_ulong),
+                    ("th32ProcessID", ctypes.c_ulong),
+                    ("th32DefaultHeapID", ctypes.c_void_p),
+                    ("th32ModuleID", ctypes.c_ulong),
+                    ("cntThreads", ctypes.c_ulong),
+                    ("th32ParentProcessID", ctypes.c_ulong),
+                    ("pcPriClassBase", ctypes.c_ulong),
+                    ("dwFlags", ctypes.c_ulong),
+                    ("szExeFile", ctypes.c_char * 260)]
+
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    CreateToolhelp32Snapshot = kernel32.CreateToolhelp32Snapshot
+    Process32First = kernel32.Process32First
+    Process32Next = kernel32.Process32Next
+    OpenProcess = kernel32.OpenProcess
+    TerminateProcess = kernel32.TerminateProcess
+    CloseHandle = kernel32.CloseHandle
+
+    def get_running_procs():
+        """Return return a dict of ppid -> set of child pids for children of the current process.
+        If a process has no children there is an empty set in the dict.
+        """
+        processes = {}
+        snapshot = CreateToolhelp32Snapshot(_TH32CS_SNAPPROCESS, 0)
+        try:
+            entry = _PROCESSENTRY32()
+            entry.dwSize = ctypes.sizeof(_PROCESSENTRY32)
+            if not Process32First(snapshot, ctypes.byref(entry)):
+                raise OSError('Process32First failed with error code %d' % ctypes.get_last_error())
+            while True:
+                # Make sure each process has an entry in the dict and add this process to its parent
+                processes.setdefault(entry.th32ProcessID, set())
+                processes.setdefault(entry.th32ParentProcessID, set()).add(entry.th32ProcessID)
+                if not Process32Next(snapshot, ctypes.byref(entry)):
+                    break
+        finally:
+            CloseHandle(snapshot)
+        return processes
+
+    def kill_proc_tree(pid):
+        running_procs = get_running_procs()
+        if pid not in running_procs:
+            return
+
+        # Terminate the process
+        proc = OpenProcess(_PROCESS_TERMINATE, False, pid)
+        if not proc:
+            raise OSError("OpenProcess failed with error code %d" % ctypes.get_last_error())
+        try:
+            if 0 == TerminateProcess(proc, -9):
+                raise OSError("TerminateProcess failed with error code %d" % ctypes.get_last_error())
+        finally:
+            CloseHandle(proc)
+
+        # Then terminate any remaining child processes
+        children = running_procs[pid]
+        if children:
+            # Check which are still running after terminating the parent process
+            running_procs = get_running_procs()
+            children = [c for c in children if c in running_procs]
+            for child_pid in children:
+                kill_proc_tree(child_pid)
+
+    try:
+        kill_proc_tree(proc.pid)
+    except:
+        _log.warning("Failed to kill Jupyter process %d" % proc.pid, exc_info=True)
 
 
 @atexit.register

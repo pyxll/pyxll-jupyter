@@ -2,7 +2,7 @@
 JupyterQtWidget is the widget that gets embedded in Excel and hosts
 a tabbed browser widget containing the Jupyter notebook.
 """
-from ..kernel import start_kernel, launch_jupyter
+from ..kernel import start_kernel, launch_jupyter, kill_process
 from .browser import Browser
 from .qtimports import QWidget, QVBoxLayout
 import subprocess
@@ -48,12 +48,6 @@ class JupyterQtWidget(QWidget):
         self.browser.create_tab(url)
 
     def closeEvent(self, event):
-        # Kill the Jupyter subprocess using taskkill (just killing the process using POpen.kill
-        # doesn't terminate any child processes)
+        # Kill the Jupyter subprocess
         if self.proc is not None:
-            while self.proc.poll() is None:
-                si = subprocess.STARTUPINFO()
-                si.wShowWindow = subprocess.SW_HIDE
-                subprocess.check_call(['taskkill', '/F', '/T', '/PID', str(self.proc.pid)],
-                                      startupinfo=si,
-                                      shell=True)
+            kill_process(self.proc)
