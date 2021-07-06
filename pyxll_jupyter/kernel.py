@@ -559,5 +559,5 @@ def _kill_jupyter_processes():
     """Ensure all Jupyter processes are killed."""
     global _all_jupyter_processes
     for proc in _all_jupyter_processes:
-        _kill_process(proc)
+        kill_process(proc)
     _all_jupyter_processes = [x for x in _all_jupyter_processes if x.poll() is None]

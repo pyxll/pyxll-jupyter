@@ -32,7 +32,7 @@ setup(
     description="Adds Jupyter notebooks to Microsoft Excel using PyXLL.",
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version="0.2.0",
+    version="0.2.1.beta",
     packages=find_packages(),
     include_package_data=True,
     package_data={
