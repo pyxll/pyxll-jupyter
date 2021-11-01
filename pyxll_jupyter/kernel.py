@@ -413,6 +413,7 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
     # Monitor the output of the process in a background thread
     def thread_func(proc, url_queue, killed_event):
         encoding = sys.getfilesystemencoding()
+        next_line_is_url = False
         matched_url = None
 
         while proc.poll() is None:
@@ -423,12 +424,20 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
                 _log.debug(line)
                 continue
             _log.info(line)
+
             if matched_url is None:
-                match = re.search(r"(https?://([a-z|0-9]+\.?)+(:[0-9]+)?/?\?token=[a-f|0-9]+)", line, re.I | re.A)
-                if match:
-                    matched_url = match.group(1)
-                    _log.info("Found Jupyter notebook server running on '%s'" % matched_url)
-                    url_queue.put(matched_url)
+                if next_line_is_url:
+                    match = re.search(r"(?:^|\s)(https?://.*)$", line, re.IGNORECASE)
+                    if match:
+                        matched_url = match.group(1).strip()
+                        _log.info("Found Jupyter notebook server running on '%s'" % matched_url)
+                        next_line_is_url = False
+                        url_queue.put(matched_url)
+                        continue
+
+                if re.search(r"(^|\s)Jupyter Notebook (.+) is running at:", line, re.IGNORECASE):
+                    next_line_is_url = True
+                    continue
 
         if matched_url is None and not killed_event.is_set():
             _log.error("Jupyter notebook process ended without printing a URL.")
