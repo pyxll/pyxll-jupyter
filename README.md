@@ -34,12 +34,16 @@ To configure add the following to your pyxll.cfg file (default values shown):
     [JUPYTER]
     use_workbook_dir = 0
     notebook_dir = Documents
+    subcommand = notebook
     timeout = 30
     qt = PySide2
     disable_ribbon = 0
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
 as the current workbook.
+
+The *subcommand* option can be used to switch the Jupyter subcommand used to launch the Jupyter web server.
+It can be set to either `notebook` for the default Jupyter notebook interface, or `lab` if using Jupyterlab.
 
 If *disable_ribbon* is set then the ribbon button to start Jupyter will not be shown, however Jupyter
 may still be opened using the "OpenJupyterNotebook" macro.
