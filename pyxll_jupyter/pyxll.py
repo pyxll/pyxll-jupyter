@@ -74,11 +74,20 @@ def _get_jupyter_timeout(cfg):
     return max(timeout, 1.0)
 
 
-def _get_notebook_kwargs(initial_path=None, notebook_path=None):
+def _get_jupyter_subcommand(cfg, default="notebook"):
+    """Return the name of the Juputer subcommand to use to launch the Jupyter notebook server."""
+    subcommand = default
+    if cfg.has_option("JUPYTER", "subcommand"):
+        subcommand = cfg.get("JUPYTER", "subcommand")
+    return subcommand
+
+
+def _get_notebook_kwargs(initial_path=None, notebook_path=None, subcommand=None):
     """Get the kwargs for calling launch_jupyter.
 
     :param initial_path: Path to open Jupyter in.
     :param notebook_path: Path of Jupyter notebook to open.
+    :param subcommand: Jupyter subcommand to use to launch the notebook server.
     """
     if initial_path is not None and notebook_path is not None:
         raise RuntimeError("'initial_path' and 'notebook_path' cannot both be set.")
@@ -92,6 +101,11 @@ def _get_notebook_kwargs(initial_path=None, notebook_path=None):
 
     cfg = get_config()
     timeout = _get_jupyter_timeout(cfg)
+    subcommand = subcommand or _get_jupyter_subcommand(cfg)
+
+    if subcommand not in ("notebook", "lab"):
+        raise ValueError(f"Unexpected value '{subcommand}' for Jupyter subcommand. "
+                         "Expected 'notebook' or 'lab'.")
 
     if notebook_path is None and initial_path is None:
         initial_path = _get_notebook_path(cfg)
@@ -103,6 +117,7 @@ def _get_notebook_kwargs(initial_path=None, notebook_path=None):
     return {
         "initial_path": initial_path,
         "notebook_path": notebook_path,
+        "subcommand": subcommand,
         "timeout": timeout
     }
 

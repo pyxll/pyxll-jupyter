@@ -220,25 +220,25 @@ def start_kernel():
     return ipy
 
 
-def _find_jupyter_script():
-    """Returns the path to 'jupyter-notebook-script.py' used to start
+def _find_jupyter_script(subcommand="notebook"):
+    """Returns the path to 'jupyter-notebook-script.py' or 'jupyter-lab-script.py" used to start
     the Jupyter notebook server. Returns None if the script can't be found.
     """
     # Look for it using importlib first
-    spec = importlib.util.find_spec("jupyter-notebook-script")
+    spec = importlib.util.find_spec(f"jupyter-{subcommand}-script")
     if spec is not None and spec.origin and os.path.exists(spec.origin):
         return os.path.abspath(spec.origin)
 
     # If that doesn't work look in the Scripts folder
     if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
-        path = os.path.join(os.path.dirname(sys.executable), "Scripts", "jupyter-notebook-script.py")
+        path = os.path.join(os.path.dirname(sys.executable), "Scripts", f"jupyter-{subcommand}-script.py")
         if os.path.exists(path):
             return os.path.abspath(path)
 
     return None
 
 
-def _get_jupyter_python_script():
+def _get_jupyter_python_script(subcommand="notebook"):
     """Try to determine a Python command that will start the Jupyter notebook.
     Returns None if the entry point wasn't found or couldn't be turned
     into a Python command.
@@ -268,17 +268,17 @@ def _get_jupyter_python_script():
         return
 
     try:
-        ep = load_entry_point("notebook", "console_scripts", "jupyter-notebook")
+        ep = load_entry_point("notebook", "console_scripts", f"jupyter-{subcommand}")
         if ep is None:
-            _log.debug("Entry point notebook.console_scripts.jupyter-notebook not found.")
+            _log.debug(f"Entry point notebook.console_scripts.jupyter-{subcommand} not found.")
             return
     except:
-        _log.debug("Error loading jupyter-notebook entry point.", exc_info=True)
+        _log.debug(f"Error loading jupyter-{subcommand} entry point.", exc_info=True)
         return
 
     try:
         if not isinstance(ep, types.MethodType) or not isinstance(ep.__self__, type):
-            _log.debug(f"Unexpected type for jupyter-notebook entry point: {ep}")
+            _log.debug(f"Unexpected type for jupyter-{subcommand} entry point: {ep}")
             return
 
         return "; ".join((
@@ -287,31 +287,35 @@ def _get_jupyter_python_script():
             f"sys.exit({ep.__self__.__name__}.{ep.__name__}())"
         ))
     except:
-        _log.debug("Unexpected error getting jupyter-notebook entry point", exc_info=True)
+        _log.debug(f"Unexpected error getting jupyter-{subcommand} entry point", exc_info=True)
 
 
-def _find_jupyter_cmd():
-    """Find the 'jupyter-notebook' executable or bat file.
+def _find_jupyter_cmd(subcommand="notebook"):
+    """Find the 'jupyter-notebook' or 'jupyter-lab' executable or bat file.
     Returns None if it can't be found.
     """
     # Look in the python folder and in the scripts folder
     if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
         for ext in (".exe", ".bat"):
             for path in (os.path.dirname(sys.executable), os.path.join(os.path.dirname(sys.executable), "Scripts")):
-                jupyter_cmd = os.path.join(path, "jupyter-notebook" + ext)
+                jupyter_cmd = os.path.join(path, f"jupyter-{subcommand}{ext}")
                 if os.path.exists(jupyter_cmd):
                     return os.path.abspath(jupyter_cmd)
 
     # If it wasn't found look for it on the system path
     for ext in (".exe", ".bat"):
-        jupyter_cmd = _which("jupyter-notebook" + ext)
+        jupyter_cmd = _which(f"jupyter-{subcommand}{ext}")
         if jupyter_cmd is not None and os.path.exists(jupyter_cmd):
             return os.path.abspath(jupyter_cmd)
 
     return None
 
 
-def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser=False):
+def launch_jupyter(initial_path=None,
+                   notebook_path=None,
+                   subcommand="notebook",
+                   timeout=30,
+                   no_browser=False):
     """Start the IPython kernel and launch a Jupyter notebook server as a child process.
 
     :param initial_path: Directory to start Jupyter in
@@ -338,7 +342,7 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
     if sys.executable and os.path.basename(sys.executable).lower() in ("python.exe", "pythonw.exe"):
         python = os.path.join(os.path.dirname(sys.executable), "python.exe")
         if os.path.exists(python):
-            jupyter_script = _find_jupyter_script()
+            jupyter_script = _find_jupyter_script(subcommand=subcommand)
             if jupyter_script:
                 module, _ = os.path.splitext(os.path.basename(jupyter_script))
                 pythonpath.insert(0, os.path.dirname(jupyter_script))
@@ -346,13 +350,13 @@ def launch_jupyter(initial_path=None, notebook_path=None, timeout=30, no_browser
                 _log.debug("Using Jupyter script '%s'" % jupyter_script)
 
         if not cmd:
-            python_cmd = _get_jupyter_python_script()
+            python_cmd = _get_jupyter_python_script(subcommand=subcommand)
             if python_cmd:
                 cmd.extend([python, "-c", python_cmd])
                 _log.debug("Using Jupyter command '%s'" % python_cmd)
 
     if not cmd:
-        jupyter_cmd = _find_jupyter_cmd()
+        jupyter_cmd = _find_jupyter_cmd(subcommand=subcommand)
         if not jupyter_cmd:
             raise RuntimeError("jupyter-notebook command not found")
         cmd.append(jupyter_cmd)
