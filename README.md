@@ -9,7 +9,7 @@ See the [Python Jupyter Notebooks in Excel](https://www.pyxll.com/blog/python-ju
 - PyXLL >= 5.0.0
 - Jupyter >= 1.0.0
 - notebook >= 6.0.0
-- PySide2
+- PySide2, or PySide6 for Python >= 3.10
 
 ## Installation
 
