@@ -57,9 +57,10 @@ setup(
         ]
     },
     install_requires=[
-        "pyxll >= 5.0.0",
+        "pyxll >= 5.1.0",
         "jupyter >= 1.0.0",
         "notebook >= 6.0.0",
-        "PySide2"
+        "PySide2;python_version<'3.10'",
+        "PySide6;python_version>='3.10'"
     ]
 )
