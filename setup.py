@@ -54,6 +54,9 @@ setup(
         "pyxll": [
             "modules = pyxll_jupyter.pyxll:modules",
             "ribbon = pyxll_jupyter.pyxll:ribbon"
+        ],
+        "jupyter_client.kernel_provisioners": [
+            "pyxll-provisioner = pyxll_jupyter.provisioning:ExistingProvisioner"
         ]
     },
     install_requires=[
