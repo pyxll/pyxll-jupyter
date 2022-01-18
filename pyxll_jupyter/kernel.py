@@ -38,7 +38,7 @@ _subcommand_jupyter_args = {
 # Query args to add to the URL to open the client
 _subcommand_query_params = {
     "notebook": [],
-    "lab": ["reset"]  # Jupyterlab won't reliably open without this
+    "lab": []
 }
 
 _log = logging.getLogger(__name__)

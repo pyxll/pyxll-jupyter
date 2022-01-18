@@ -6,10 +6,14 @@ See the [Python Jupyter Notebooks in Excel](https://www.pyxll.com/blog/python-ju
 
 ## Requirements
 
-- PyXLL >= 5.0.0
+- PyXLL >= 5.1.0
 - Jupyter >= 1.0.0
 - notebook >= 6.0.0
 - PySide2, or PySide6 for Python >= 3.10
+  
+### Optional
+
+- jupyterlab >= 4.0.0
 
 ## Installation
 
@@ -43,15 +47,27 @@ If *use_workbook_dir* is set and the current workbook is saved then Jupyter will
 as the current workbook.
 
 The *subcommand* option can be used to switch the Jupyter subcommand used to launch the Jupyter web server.
-It can be set to either `notebook` for the default Jupyter notebook interface, or `lab` if using Jupyterlab.
+It can be set to either `notebook` for the default Jupyter notebook interface, or `lab` if using Jupyterlab
+*(experimental)*.
 
 If *disable_ribbon* is set then the ribbon button to start Jupyter will not be shown, however Jupyter
 may still be opened using the "OpenJupyterNotebook" macro.
 
+## Experimental JupyterLab Support
+
+Jupyterlab can be used instead of the default Jupyter Notebook interface by specifying
+`subcommand = lab` in the ``[JUPYTER]`` section of the pyxll.cfg file.
+
+This requires Jupyterlab >= 4.0.0 to be installed. At the time of writing, version 4 of Jupyterlab is in
+pre-release and can be installed using:
+
+    pip install --pre jupyterlab
+
 ### Qt
 
 The pyxll-jupyter package uses the Qt [QWebEngineView](https://doc.qt.io/qt-5/qwebengineview.html) widget, and by
-default will use the [PySide2](https://pypi.org/project/PySide2/) package.
+default will use the [PySide2](https://pypi.org/project/PySide2/) package for Python <= 3.9 or
+the [PySide6](https://pypi.org/project/PySide6/) package for Python >= 3.10.
 
 This can be changed to use [PyQt5](https://www.riverbankcomputing.com/software/pyqt/) by setting `qt = PyQt5` in
 the `JUPYTER` section of the config. You will need to have both the `pyqt5` and `pyqtwebengine` packages installed
@@ -117,4 +133,4 @@ optional arguments:
 
 For more information about installing and using PyXLL see https://www.pyxll.com.
 
-Copyright (c) 2020 PyXLL Ltd
+Copyright (c) PyXLL Ltd
