@@ -20,11 +20,26 @@ import threading
 import logging
 import ctypes
 import atexit
-import types
 import queue
 import sys
 import os
 import re
+
+# Command line args for the different Jupyter subcommands
+_subcommand_jupyter_args = {
+    "notebook": [
+        "--NotebookApp.kernel_manager_class=pyxll_jupyter.kernel_managers.ExternalIPythonKernelManager"
+    ],
+    "lab": [
+        "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
+    ]
+}
+
+# Query args to add to the URL to open the client
+_subcommand_query_params = {
+    "notebook": [],
+    "lab": []
+}
 
 _log = logging.getLogger(__name__)
 _all_jupyter_processes = []
@@ -37,6 +52,7 @@ try:
 except ImportError:
     pywintypes = None
     win32api = None
+
 
 if getattr(sys, "_ipython_kernel_running", None) is None:
     sys._ipython_kernel_running = False
@@ -238,53 +254,68 @@ def _find_jupyter_script(subcommand="notebook"):
     return None
 
 
+def _find_entry_point(dist, group, name):
+    """Finds an entry point but doesn't load it."""
+    try:
+        from importlib.metadata import distribution
+
+        def get_entry_info(spec, group, name):
+            try:
+                dist_name, _, _ = spec.partition('==')
+                matches = (
+                    entry_point
+                    for entry_point in distribution(dist_name).entry_points
+                    if entry_point.group == group and entry_point.name == name
+                )
+                return next(matches)
+            except StopIteration:
+                return None
+    except ImportError:
+        get_entry_info = None
+
+    if get_entry_info is None:
+        try:
+            from pkg_resources import get_entry_info
+        except ImportError:
+            get_entry_info = None
+
+    if get_entry_info is None:
+        _log.warning("Unable to find 'get_entry_info' function.")
+        return
+
+    return get_entry_info(dist, group, name)
+
+
+def _run_entry_point(dist, group, name):
+    """Loads and runs an entry point"""
+    ep = _find_entry_point(dist, group, name)
+    cls = ep.load()
+    return getattr(cls(), ep.attr)()
+
+
 def _get_jupyter_python_script(subcommand="notebook"):
     """Try to determine a Python command that will start the Jupyter notebook.
     Returns None if the entry point wasn't found or couldn't be turned
     into a Python command.
     """
+    # We only find the entry point here and don't try loading it.
+    # That's because the jupyterlab entry point displays a console when imported
+    # as it uses subprocess to get some npm information.
+    dist = "jupyterlab" if subcommand == "lab" else "notebook"
     try:
-        from importlib.metadata import distribution
-
-        def load_entry_point(spec, group, name):
-            dist_name, _, _ = spec.partition('==')
-            matches = (
-                entry_point
-                for entry_point in distribution(dist_name).entry_points
-                if entry_point.group == group and entry_point.name == name
-            )
-            return next(matches).load()
-    except ImportError:
-        load_entry_point = None
-
-    if load_entry_point is None:
-        try:
-            from pkg_resources import load_entry_point
-        except ImportError:
-            load_entry_point = None
-
-    if load_entry_point is None:
-        _log.debug("Unable to find load_entry_point to start the notebook server.")
-        return
-
-    try:
-        ep = load_entry_point("notebook", "console_scripts", f"jupyter-{subcommand}")
+        ep = _find_entry_point(dist, "console_scripts", f"jupyter-{subcommand}")
         if ep is None:
-            _log.debug(f"Entry point notebook.console_scripts.jupyter-{subcommand} not found.")
+            _log.debug(f"Entry point {dist}.console_scripts.jupyter-{subcommand} not found.")
             return
     except:
-        _log.debug(f"Error loading jupyter-{subcommand} entry point.", exc_info=True)
+        _log.debug(f"Error loading {dist}.console_scripts.jupyter-{subcommand} entry point.", exc_info=True)
         return
 
     try:
-        if not isinstance(ep, types.MethodType) or not isinstance(ep.__self__, type):
-            _log.debug(f"Unexpected type for jupyter-{subcommand} entry point: {ep}")
-            return
-
         return "; ".join((
             "import sys",
-            f"from {ep.__self__.__module__} import {ep.__self__.__name__}",
-            f"sys.exit({ep.__self__.__name__}.{ep.__name__}())"
+            f"from {__name__} import _run_entry_point",
+            f"sys.exit(_run_entry_point('{dist}', '{ep.group}', '{ep.name}'))"
         ))
     except:
         _log.debug(f"Unexpected error getting jupyter-{subcommand} entry point", exc_info=True)
@@ -379,10 +410,8 @@ def launch_jupyter(initial_path=None,
     if no_browser:
         cmd.append("--no-browser")
 
-    cmd.extend([
-        "--NotebookApp.kernel_manager_class=pyxll_jupyter.extipy.ExternalIPythonKernelManager",
-        "-y"
-    ])
+    cmd.extend(_subcommand_jupyter_args[subcommand])
+    cmd.append("-y")
 
     # run jupyter in it's own process
     si = subprocess.STARTUPINFO()
@@ -439,12 +468,12 @@ def launch_jupyter(initial_path=None,
                         url_queue.put(matched_url)
                         continue
 
-                if re.search(r"(^|\s)Jupyter Notebook (.+) is running at:", line, re.IGNORECASE):
+                if re.search("(^|\s)Jupyter (.+) is running at:", line, re.IGNORECASE):
                     next_line_is_url = True
                     continue
 
         if matched_url is None and not killed_event.is_set():
-            _log.error("Jupyter notebook process ended without printing a URL.")
+            _log.error("Jupyter process ended without printing a URL.")
             url_queue.put(None)
 
     url_queue = queue.Queue()
@@ -475,12 +504,16 @@ def launch_jupyter(initial_path=None,
 
         raise RuntimeError("Timed-out waiting for the Jupyter notebook URL.")
 
+    root, params = url.split("?", 1)
+    params = params.split("&")
+    params.extend(_subcommand_query_params[subcommand])
+
     # Update the URL to point to the notebook
     if notebook is not None:
-        root, params = url.split("?", 1)
-        url = root.rstrip("/") + "/notebooks/" + notebook + "?" + params
+        root = root.rstrip("/") + "/notebooks/" + notebook
 
     # Return the proc and url
+    url = root + (("?" + "&".join(params)) if params else "")
     return proc, url
 
 
