@@ -199,7 +199,7 @@ def start_kernel():
     if IPKernelApp.initialized():
         ipy = IPKernelApp.instance()
     else:
-        ipy = IPKernelApp.instance(local_ns={})
+        ipy = IPKernelApp.instance()
         ipy.connection_dir = _get_connection_dir(ipy)
         ipy.initialize([])
 
