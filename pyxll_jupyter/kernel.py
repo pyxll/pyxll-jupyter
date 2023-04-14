@@ -504,7 +504,7 @@ def launch_jupyter(initial_path=None,
 
         raise RuntimeError("Timed-out waiting for the Jupyter notebook URL.")
 
-    root, params = url.split("?", 1)
+    root, params = url.split("?", 1) if "?" in url else url, ""
     params = params.split("&")
     params.extend(_subcommand_query_params[subcommand])
 
