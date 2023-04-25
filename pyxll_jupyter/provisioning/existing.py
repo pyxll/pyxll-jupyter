@@ -25,7 +25,10 @@ class ExistingProvisioner(KernelProvisionerBase):
 
         _log.info(f'PyXLL IPython kernel = {connection_file}')
         with open(connection_file) as f:
-            return json.load(f)
+            file_info = json.load(f)
+
+        file_info["key"] = file_info["key"].encode()
+        return file_info
 
     async def pre_launch(self, **kwargs):
         kwargs = await super().pre_launch(**kwargs)
