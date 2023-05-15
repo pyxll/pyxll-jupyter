@@ -11,6 +11,7 @@ To install this package use::
 """
 from .widgets import JupyterQtWidget, QApplication, QMessageBox
 from .kernel import launch_jupyter
+from .onedrive import get_onedrive_path
 from pyxll import xlcAlert, get_config, xl_app, xl_macro, schedule_call
 from functools import partial
 import ctypes.wintypes
@@ -43,15 +44,34 @@ def _get_notebook_path(cfg):
     if use_workbook_dir:
         xl = xl_app(com_package="win32com")
         wb = xl.ActiveWorkbook
-        if wb is not None and wb.FullName and os.path.exists(wb.FullName):
-            return os.path.dirname(wb.FullName)
+        if wb is not None and wb.FullName:
+            path = wb.FullName
+
+            # If the workbook path exists then use it
+            if os.path.exists(path):
+                return os.path.dirname(path)
+
+            # Otherwise see if it's a OneDrive link and try to resolve it
+            lpath = path.lower()
+            if lpath.startswith("https://"):
+                try:
+                    onedrive_path = get_onedrive_path(path)
+                    if onedrive_path:
+                        if os.path.exists(onedrive_path):
+                            return os.path.dirname(onedrive_path)
+                        _log.warning(f"OneDrive path '{onedrive_path}' does not exist")
+                except Exception as e:
+                    _log.warn(f"Unable to get local OneDrive path from URL '{path}'", exc_info=True)
+
+            # If we can't use this path then log a warning
+            _log.warning(f"Workbook path '{path}' not found and cannot be used as the Jupyter folder.")
 
     # Otherwise use the path option
     if cfg.has_option("JUPYTER", "notebook_dir"):
         path = cfg.get("JUPYTER", "notebook_dir").strip("\"\' ")
         if os.path.exists(path):
             return os.path.normpath(path)
-        _log.warning("Notebook path '%s' does not exist" % path)
+        _log.warning(f"Notebook path '{path}' does not exist")
 
     # And if that's not set use My Documents
     CSIDL_PERSONAL = 5  # My Documents

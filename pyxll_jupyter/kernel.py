@@ -428,6 +428,9 @@ def launch_jupyter(initial_path=None,
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW | 1
         cmd = [os.path.basename(exe)] + cmd[1:]
 
+    if initial_path:
+        _log.debug(f"Starting Jupyter in '{initial_path}'.")
+
     proc = subprocess.Popen(cmd,
                             cwd=initial_path,
                             env=env,
