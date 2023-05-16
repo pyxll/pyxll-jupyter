@@ -350,7 +350,7 @@ def get_onedrive_path(url: str,
                  rebuild_cache = True  # full cache refresh is required
                  break
 
-    if locToWebColl and not rebuild_cache:
+    if locToWebColl is not None and not rebuild_cache:
         resColl = {}
         for vItem in locToWebColl.values():
             locRoot = vItem[0]
