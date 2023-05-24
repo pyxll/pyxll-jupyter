@@ -63,7 +63,9 @@ setup(
         "pyxll >= 5.1.0",
         "jupyter >= 1.0.0",
         "notebook >= 6.0.0",
-        "PySide2;python_version<'3.10'",
-        "PySide6!=6.4.2;python_version>='3.10'"
+        "PySide2; python_version < '3.10'",
+        "PySide6 != 6.4.2; python_version >= '3.10' and platform_machine == 'x86_64'",
+        "PyQt5; python_version >= '3.10' and platform_machine != 'x86_64'",
+        "PyQtWebEngine; python_version >= '3.10' and platform_machine != 'x86_64'"
     ]
 )
