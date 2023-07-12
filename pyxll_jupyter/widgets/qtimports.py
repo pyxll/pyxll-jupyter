@@ -61,7 +61,7 @@ for pkg in _qt_packages:
         elif pkg == "pyqt5":
             # Requires PyQt5 and PyQt5-WebEngine
             from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QTabBar, QShortcut, QMessageBox
-            from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage, QWebSettings
+            from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
             from PyQt5.QtGui import QKeySequence
             from PyQt5.QtCore import QUrl, Qt, qVersion
             from PyQt5.QtCore import pyqtSignal as Signal

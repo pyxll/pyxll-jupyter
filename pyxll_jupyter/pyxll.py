@@ -275,7 +275,7 @@ def OpenJupyterNotebook(path=None, browser=False):
     :return: True on success
     """
     try:
-        if path is not None:
+        if path:
             if not os.path.isabs(path):
                 # Try and get the absolute path relative to the active workbook
                 xl = xl_app(com_package="win32com")
@@ -289,13 +289,13 @@ def OpenJupyterNotebook(path=None, browser=False):
 
         initial_path = None
         notebook_path = None
-        if path is not None:
+        if path:
             if os.path.isdir(path):
                 initial_path = path
             elif os.path.isfile(path):
                 notebook_path = path
             else:
-                raise RuntimeError(f"Something is wrong with {path}")
+                raise RuntimeError(f"Something is wrong with the path '{path}'.")
 
         open_jupyter = open_jupyter_notebook_in_browser if browser else open_jupyter_notebook
 

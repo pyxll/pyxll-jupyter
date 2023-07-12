@@ -33,22 +33,52 @@ to restart the kernel or to use other Python versions or other languages.
 
 ## Configuration
 
-To configure add the following to your pyxll.cfg file (default values shown):
+To configure, add any of the following settings to your pyxll.cfg file. You do not need
+to set all of these, only the ones you wish to change::
 
     [JUPYTER]
+    ; Workbook settings
     use_workbook_dir = 0
-    notebook_dir = Documents
+    notebook_dir = C:\Path\To\Your\Documents
     subcommand = notebook
+
+    ; Browser settings
+    qt =
+    allow_cookies = 1
+    private_browser = 0
+    cache_path =
+    storage_path =
+
+    ; Other settings
     timeout = 30
-    qt = PySide2
     disable_ribbon = 0
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
 as the current workbook.
 
+*notebook_dir* can be set to an existing folder that will be used as the root documents folder the Jupyter
+opens in.
+
 The *subcommand* option can be used to switch the Jupyter subcommand used to launch the Jupyter web server.
 It can be set to either `notebook` for the default Jupyter notebook interface, or `lab` if using Jupyterlab
 *(experimental)*.
+
+*qt* can be used to switch which Qt implementation is used. Possible values are 'PySide6', 'PyQt6', 'PySide2',
+and 'PyQt5'.
+
+*allow_cookies* will prevent the Qt browser from saving cookies if set to 0.
+
+*private_browser* will prevent the Qt browser from using any previously stored data or saving any data from
+the browser session.
+
+*cache_path* can be set to an existing folder for the browser to save cached data. By default this will be
+the Qt browser's default cached data path.
+
+*storage_path* can be set to an existing folder for the browser to save persistent storage data. By default this will be
+the Qt browser's default persistent storage path.
+
+*timeout* is the maximum number of seconds to wait for the Jupyter server process to start up. If you
+are getting timeout errors then increasing this may help.
 
 If *disable_ribbon* is set then the ribbon button to start Jupyter will not be shown, however Jupyter
 may still be opened using the "OpenJupyterNotebook" macro.
@@ -130,6 +160,23 @@ optional arguments:
                         Height in points to use when creating the Picture in
                         Excel.
 ```
+
+## Opening from VBA
+
+You can open the Jupyter notebook from VBA using the ``OpenJupyterNotebook`` macro, called
+via VBA's ``Run`` method. For example::
+
+  Run "OpenJupyterNotebook"
+
+The macro takes two arguments, the initial path and a boolean to open in a browser rather
+than in Excel task pane if True.
+
+The initial path can either be a valid path, or an empty string.
+
+For example, to open Jupyter in a browser with the default path you would run the macro as follows::
+
+    Run "OpenJupyterNotebook", "", True
+
 
 For more information about installing and using PyXLL see https://www.pyxll.com.
 
