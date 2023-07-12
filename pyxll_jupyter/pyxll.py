@@ -266,11 +266,12 @@ def set_selection_in_ipython(*args):
 
 
 @xl_macro
-def OpenJupyterNotebook(path=None):
+def OpenJupyterNotebook(path=None, browser=False):
     """
     Open a Jupyter notebook in a new task pane.
 
     :param path: Path to Jupyter notebook file or directory.
+    :param browser: Set to true to open in a browser instead of a task pane.
     :return: True on success
     """
     try:
@@ -296,9 +297,11 @@ def OpenJupyterNotebook(path=None):
             else:
                 raise RuntimeError(f"Something is wrong with {path}")
 
+        open_jupyter = open_jupyter_notebook_in_browser if browser else open_jupyter_notebook
+
         # Use schedule_call to actually open the notebook since if this was called
         # from a Workbook.Open macro Excel may not yet be ready to open a CTP.
-        schedule_call(partial(open_jupyter_notebook,
+        schedule_call(partial(open_jupyter,
                                 initial_path=initial_path,
                                 notebook_path=notebook_path))
 
