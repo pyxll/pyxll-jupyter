@@ -7,7 +7,7 @@ used in the rest of this project and it is not well structured.
 This is intentional to make comparing this code with the original VB code easier.
 """
 
-b"""
+r"""
 'Attribute VB_Name = "GetLocalOneDrivePath"
 ' Cross-platform VBA Function to get the local path of OneDrive/SharePoint
 ' synchronized Microsoft Office files (Works on Windows and on macOS)
@@ -329,17 +329,17 @@ def get_onedrive_path(url: str,
         if settPath.exists() and settPath.is_dir():
             for dirName in settPath.iterdir():
                   if dirName.is_dir() \
-                  and (dirName.name == "Personal" or re.match("^Business\d+$", dirName.name)):
+                  and (dirName.name == "Personal" or re.match(r"^Business\d+$", dirName.name)):
                         oneDriveSettDirs.append(dirName)
 
     requiredFiles = []
     for vDir in oneDriveSettDirs:
          for fileName in vDir.iterdir():
               if fileName.is_file() and (
-                re.match("^([\da-f]{16}|([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}))\.(ini|dat)$", fileName.name, re.I) \
-                or re.match("^ClientPolicy.*\.ini$", fileName.name, re.I) \
-                or re.match("^GroupFolders.ini$", fileName.name, re.I) \
-                or re.match("^global.ini$", fileName.name, re.I)):
+                re.match(r"^([\da-f]{16}|([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}))\.(ini|dat)$", fileName.name, re.I) \
+                or re.match(r"^ClientPolicy.*\.ini$", fileName.name, re.I) \
+                or re.match(r"^GroupFolders.ini$", fileName.name, re.I) \
+                or re.match(r"^global.ini$", fileName.name, re.I)):
                    requiredFiles.append(fileName)
 
     # This part should ensure perfect accuracy despite the mount point cache
@@ -388,7 +388,7 @@ def get_onedrive_path(url: str,
         cid = None
         with open(globalIni, "rt", encoding="utf-16le") as fh:
             for line in fh.readlines():
-                match = re.match("cid\s*=\s*([\da-f]{16}|(?:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}))", line, re.I)
+                match = re.match(r"cid\s*=\s*([\da-f]{16}|(?:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}))", line, re.I)
                 if match:
                         cid = match.group(1)
                         break
@@ -413,7 +413,7 @@ def get_onedrive_path(url: str,
         # Read all the ClientPloicy*.ini files:
         cliPolColl = {}
         for fileName in vDir.iterdir():
-            if re.match("^ClientPolicy.*\.ini", fileName.name, re.I):
+            if re.match(r"^ClientPolicy.*\.ini", fileName.name, re.I):
                 cliPol = cliPolColl[fileName.name] = {}
                 with open(fileName, "rt", encoding="utf-16le") as fh:
                     for line in fh.readlines():
@@ -433,9 +433,9 @@ def get_onedrive_path(url: str,
             s = fh.read()
 
         if re.match("Personal", vDir.name, re.I):
-            folderIdPattern = re.compile("^[a-z0-9]{16}!\d{3}.*$", re.I)
+            folderIdPattern = re.compile(r"^[a-z0-9]{16}!\d{3}.*$", re.I)
         else:
-            folderIdPattern = re.compile("^[a-z0-9]{32}$", re.I)
+            folderIdPattern = re.compile(r"^[a-z0-9]{32}$", re.I)
 
         for vItem in range(16, 0, -8):
             i = s.find(sig2, vItem)               # Search pattern in cid.dat
@@ -463,7 +463,7 @@ def get_onedrive_path(url: str,
 
         # Read cid.ini file
         with open(iniFile, "rt", encoding="utf-16le") as fh:
-            if re.match("^Business\d+$", dirName, re.I):
+            if re.match(r"^Business\d+$", dirName, re.I):
                 # Settings files for a business OD account
                 # Max 9 Business OneDrive accounts can be signed in at a time.
                 libNrToWebColl = {}
@@ -556,7 +556,7 @@ def get_onedrive_path(url: str,
             elif dirName == "Personal":  # Settings files for a personal OD account
                 # Only one Personal OneDrive account can be signed in at a time.
                 for line in fh.readlines():  # Loop should exit at first line
-                    if re.match("^Library\s+=\s.*$", line, re.I):
+                    if re.match(r"^Library\s+=\s.*$", line, re.I):
                         parts = re.split("\"", line)
                         locRoot = parts[3]
                         syncFind = locRoot
@@ -579,7 +579,7 @@ def get_onedrive_path(url: str,
                 with open(groupFoldersIni, "rt", encoding="utf-16le") as gfh:
                     for line in gfh.readlines():
                         line = line.rstrip()
-                        if re.match("^.*_BaseUri\s+=\s+.*%$", line, re.I):
+                        if re.match(r"^.*_BaseUri\s+=\s+.*%$", line, re.I):
                             cid = line.rsplit("/", 1)[1][:16]
                             folderID = line.split("_", 1)[0]
                             locToWebColl[Path(locRoot) / odFolders[folderID][1]] = (
