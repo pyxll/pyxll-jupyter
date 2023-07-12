@@ -13,7 +13,14 @@ _log = logging.getLogger(__name__)
 
 class JupyterQtWidget(QWidget):
 
-    def __init__(self, parent=None, scale=None, **kwargs):
+    def __init__(self,
+                 parent=None,
+                 scale=None,
+                 private_browser=False,
+                 allow_cookies=True,
+                 cache_path=None,
+                 storage_path=None,
+                 **kwargs):
         super().__init__(parent)
 
         # proc gets set to the subprocess when the jupyter is started
@@ -35,7 +42,13 @@ class JupyterQtWidget(QWidget):
                     ctypes.windll.user32.ReleaseDC(hwnd, screen)
 
         # Create the browser widget
-        self.browser = Browser(self, scale=scale)
+        self.browser = Browser(self,
+                               scale=scale,
+                               private_browser=private_browser,
+                               allow_cookies=allow_cookies,
+                               cache_path=cache_path,
+                               storage_path=storage_path)
+
         self.browser.closed.connect(self.close)
 
         # Add the browser to the widgets layout

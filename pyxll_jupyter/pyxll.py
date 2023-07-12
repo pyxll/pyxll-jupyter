@@ -154,9 +154,45 @@ def open_jupyter_notebook(*args, initial_path=None, notebook_path=None):
     # Get the Qt Application
     app = _get_qt_app()
 
-    # Create the Jupyter web browser widget
+    
+    # Get the browser args from the config
+    cfg = get_config()
+
+    private_browser = False
+    if cfg.has_option("JUPYTER", "private_browser"):
+        try:
+            private_browser = bool(int(cfg.get("JUPYTER", "private_browser")))
+        except:
+            raise ValueError(f"Unexpected value for JUPYTER.private_browser '{cfg.get('JUPYTER', 'private_browser')}'")
+
+    allow_cookies = True
+    if cfg.has_option("JUPYTER", "allow_cookies"):
+        try:
+            allow_cookies = bool(int(cfg.get("JUPYTER", "allow_cookies")))
+        except:
+            raise ValueError(f"Unexpected value for JUPYTER.allow_cookies '{cfg.get('JUPYTER', 'allow_cookies')}'")
+
+    storage_path = None
+    if cfg.has_option("JUPYTER", "storage_path"):
+        storage_path = cfg.get("JUPYTER", "storage_path")
+        if not os.path.exists(storage_path) or not os.path.isdir(storage_path):
+            raise ValueError(f"Invalid JUPYTER.storage_path '{storage_path}'")
+
+    cache_path = None
+    if cfg.has_option("JUPYTER", "cache_path"):
+        cache_path = cfg.get("JUPYTER", "cache_path")
+        if not os.path.exists(cache_path) or not os.path.isdir(cache_path):
+            raise ValueError(f"Invalid JUPYTER.cache_path '{cache_path}'")
+
+    # Get the notebook args
     kwargs = _get_notebook_kwargs(initial_path=initial_path, notebook_path=notebook_path)
-    widget = JupyterQtWidget(**kwargs)
+
+    # Create the Jupyter web browser widget
+    widget = JupyterQtWidget(private_browser=private_browser,
+                             allow_cookies=allow_cookies,
+                             storage_path=storage_path,
+                             cache_path=cache_path,
+                             **kwargs)
 
     # Show it in a CTP
     create_ctp(widget, width=800)

@@ -11,6 +11,7 @@ pip install PySide2
 """
 from .qtimports import *
 import logging
+import warnings
 _log = logging.getLogger(__name__)
 
 
@@ -19,10 +20,35 @@ class Browser(QWidget):
 
     closed = Signal()
 
-    def __init__(self, parent=None, scale=None):
+    def __init__(self,
+                 parent=None,
+                 scale=None,
+                 private_browser=False,
+                 allow_cookies=True,
+                 cache_path=None,
+                 storage_path=None):
         super().__init__(parent)
-        self.profile = QWebEngineProfile()
         self.tabs = []
+
+        storage_name = "pyxll-jupyter"
+        if private_browser:
+            _log.debug("Using private browser mode.")
+            storage_name = None
+
+        self.profile = QWebEngineProfile(storage_name)
+
+        if allow_cookies:
+            _log.debug(f"Setting browser cookies policy to 'AllowPersistentCookies'.")
+            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
+
+        if cache_path is not None:
+            self.profile.setCachePath(cache_path)
+
+        if storage_path is not None:
+            self.profile.setPersistentStoragePath(storage_path)
+
+        _log.debug(f"Browser cache path is {self.profile.cachePath()}.")
+        _log.debug(f"Browser persistent storage path is {self.profile.persistentStoragePath()}.")
 
         layout = QVBoxLayout()
         layout.setSpacing(0)
@@ -99,7 +125,7 @@ class TabWidget(QTabWidget):
     def create_tab(self, url=None):
         view = WebView(self)
         self.tabs.append(view)
-        page = QWebEnginePage(self.profile, view)
+        page = WebEnginePage(self.profile, view)
         view.setPage(page)
 
         if self.scale:
@@ -152,6 +178,25 @@ class TabWidget(QTabWidget):
                 self.closeTab(index)
 
         page.windowCloseRequested.connect(close_requested)
+
+
+
+class WebEnginePage(QWebEnginePage):
+
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        """Log JavaScript errors to the Python log."""
+        pylevel = logging.ERROR
+        try:
+            if level == QWebEnginePage.JavaScriptConsoleMessageLevel.InfoMessageLevel:
+                pylevel = logging.INFO
+            elif level == QWebEnginePage.JavaScriptConsoleMessageLevel.WarningMessageLevel:
+                pylevel = logging.WARNING
+        except AttributeError:
+            warnings.warn("QWebEnginePage.JavaScriptConsoleMessageLevel attribute not found")
+
+        if pylevel >= logging.WARNING:
+            message = f"JavaScript Error (line {lineNumber}, source {sourceID}): {message}"
+        _log.log(pylevel, message)
 
 
 class WebView(QWebEngineView):

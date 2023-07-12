@@ -28,9 +28,11 @@ import re
 # Command line args for the different Jupyter subcommands
 _subcommand_jupyter_args = {
     "notebook": [
-        "--NotebookApp.kernel_manager_class=pyxll_jupyter.kernel_managers.ExternalIPythonKernelManager"
+        "--NotebookApp.kernel_manager_class=pyxll_jupyter.kernel_managers.nbkm.ExternalMappingKernelManager",
+        "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
     ],
     "lab": [
+        "--ServerApp.kernel_manager_class=pyxll_jupyter.kernel_managers.labkm.ExternalMappingKernelManager",
         "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
     ]
 }
