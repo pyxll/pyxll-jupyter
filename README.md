@@ -64,7 +64,7 @@ It can be set to either `notebook` for the default Jupyter notebook interface, o
 *(experimental)*.
 
 *qt* can be used to switch which Qt implementation is used. Possible values are 'PySide6', 'PyQt6', 'PySide2',
-and 'PyQt5'.
+and 'PyQt5'. By default, whichever Qt implementation is installed will be used.
 
 *allow_cookies* will prevent the Qt browser from saving cookies if set to 0.
 
