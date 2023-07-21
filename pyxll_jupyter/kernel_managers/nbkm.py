@@ -3,8 +3,14 @@ Kernel manager for connecting to a IPython kernel started outside of Jupyter.
 Use this kernel manager if you want to connect a Jupyter notebook to a IPython
 kernel started outside of Jupyter.
 """
-from notebook.services.kernels.kernelmanager import MappingKernelManager
 from jupyter_client.multikernelmanager import MultiKernelManager
+
+try:
+    # Notebook < 7.0.0 has it's own copy of MappingKernelManager
+    from notebook.services.kernels.kernelmanager import MappingKernelManager
+except ImportError:
+    # Notebook >= 7.0.0 uses the one from jupyter_server
+    from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
 
 
 class ExternalMappingKernelManager(MappingKernelManager):
