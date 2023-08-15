@@ -15,6 +15,7 @@ from zmq.eventloop import ioloop
 from pyxll import schedule_call, get_config
 import pyxll
 import importlib.util
+import pkg_resources
 import subprocess
 import threading
 import logging
@@ -27,13 +28,29 @@ import re
 
 # Command line args for the different Jupyter subcommands
 _subcommand_jupyter_args = {
-    "notebook": [
-        "--NotebookApp.kernel_manager_class=pyxll_jupyter.kernel_managers.nbkm.ExternalMappingKernelManager",
-        "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
+    # subcommand
+    "notebook": [(
+        # requirement
+        "jupyter-client >= 7.0.0", [
+            # args
+            "--ServerApp.kernel_manager_class=pyxll_jupyter.kernel_managers.nbkm.ExternalMappingKernelManager",
+            "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
+        ]), (
+        # requirement
+        "jupyter-client >= 6.0.0", [
+            # args (KernelProvisionerFactory not available before version 7.0)
+            "--NotebookApp.kernel_manager_class=pyxll_jupyter.kernel_managers.extipy.ExternalMappingKernelManager"
+        ])
     ],
-    "lab": [
-        "--ServerApp.kernel_manager_class=pyxll_jupyter.kernel_managers.labkm.ExternalMappingKernelManager",
-        "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
+
+    # subcommand
+    "lab": [(
+        # requirement
+        "jupyterlab >= 4.0.0", [
+            # args
+            "--ServerApp.kernel_manager_class=pyxll_jupyter.kernel_managers.labkm.ExternalMappingKernelManager",
+            "--KernelProvisionerFactory.default_provisioner_name=pyxll-provisioner"
+        ])
     ]
 }
 
@@ -238,6 +255,26 @@ def start_kernel():
     return ipy
 
 
+def _get_jupyter_args(subcommand):
+    """Get the args for a Jupyter subcommand."""
+    if subcommand not in _subcommand_jupyter_args:
+        raise RuntimeError(f"Unexpected Juputer subcommand '{subcommand}'")
+
+    # Find the args for the installed Jupyter version
+    requirement = "unknown"
+    for requirement, args in _subcommand_jupyter_args[subcommand]:
+        if requirement is None:
+            return args
+
+        try:
+              pkg_resources.require(requirement)
+              return args
+        except (pkg_resources.VersionConflict, pkg_resources.DistributionNotFound):
+            pass
+
+    raise RuntimeError(f"Requirements for Jupyter {subcommand} not satisfied ({requirement}).")
+
+
 def _find_jupyter_script(subcommand="notebook"):
     """Returns the path to 'jupyter-notebook-script.py' or 'jupyter-lab-script.py" used to start
     the Jupyter notebook server. Returns None if the script can't be found.
@@ -412,7 +449,7 @@ def launch_jupyter(initial_path=None,
     if no_browser:
         cmd.append("--no-browser")
 
-    cmd.extend(_subcommand_jupyter_args[subcommand])
+    cmd.extend(_get_jupyter_args(subcommand))
     cmd.append("-y")
 
     # run jupyter in it's own process
@@ -473,7 +510,7 @@ def launch_jupyter(initial_path=None,
                         url_queue.put(matched_url)
                         continue
 
-                if re.search("(^|\s)Jupyter (.+) is running at:", line, re.IGNORECASE):
+                if re.search(r"(^|\s)Jupyter (.+) is running at:", line, re.IGNORECASE):
                     next_line_is_url = True
                     continue
 
