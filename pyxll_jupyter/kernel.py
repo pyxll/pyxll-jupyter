@@ -11,20 +11,25 @@ executable = <path to your python installation>/pythonw.exe
 from .magic import ExcelMagics
 from ipykernel.kernelapp import IPKernelApp
 from ipykernel.embed import embed_kernel
-from zmq.eventloop import ioloop
 from pyxll import schedule_call, get_config
 import pyxll
 import importlib.util
-import pkg_resources
 import subprocess
 import threading
 import logging
 import ctypes
 import atexit
 import queue
+import zmq
 import sys
 import os
 import re
+
+if zmq.pyzmq_version_info()[0] >= 17:
+    from tornado.ioloop import IOLoop
+else:
+    from zmq.eventloop.ioloop import IOLoop
+
 
 # Command line args for the different Jupyter subcommands
 _subcommand_jupyter_args = {
@@ -182,7 +187,7 @@ def start_kernel():
         self.kernel.start()
 
         # set up a timer to periodically poll the zmq ioloop
-        self.loop = ioloop.IOLoop.current()
+        self.loop = IOLoop.current()
 
         def poll_ioloop():
             try:
@@ -255,6 +260,29 @@ def start_kernel():
     return ipy
 
 
+def _check_requirement(requirement):
+    """Return True if a required package version is installed, False otherwise"""
+    if sys.version_info[:2] >= (3, 10):
+        from packaging.requirements import Requirement
+        import importlib.metadata
+
+        try:
+            requirement = Requirement(requirement)
+            version = importlib.metadata.version(requirement.name)
+            return version in requirement.specifier
+        except importlib.metadata.PackageNotFoundError:
+            return False
+
+    else:
+        import pkg_resources
+
+        try:
+            pkg_resources.require(requirement)
+            return True
+        except (pkg_resources.VersionConflict, pkg_resources.DistributionNotFound):
+            return
+
+
 def _get_jupyter_args(subcommand):
     """Get the args for a Jupyter subcommand."""
     if subcommand not in _subcommand_jupyter_args:
@@ -263,14 +291,8 @@ def _get_jupyter_args(subcommand):
     # Find the args for the installed Jupyter version
     requirement = "unknown"
     for requirement, args in _subcommand_jupyter_args[subcommand]:
-        if requirement is None:
+        if requirement is None or _check_requirement(requirement):
             return args
-
-        try:
-              pkg_resources.require(requirement)
-              return args
-        except (pkg_resources.VersionConflict, pkg_resources.DistributionNotFound):
-            pass
 
     raise RuntimeError(f"Requirements for Jupyter {subcommand} not satisfied ({requirement}).")
 

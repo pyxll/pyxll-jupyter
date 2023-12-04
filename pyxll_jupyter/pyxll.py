@@ -15,12 +15,25 @@ from .onedrive import get_onedrive_path
 from pyxll import xlcAlert, get_config, xl_app, xl_macro, schedule_call
 from functools import partial
 import ctypes.wintypes
-import pkg_resources
 import logging
 import sys
 import os
 
 _log = logging.getLogger(__name__)
+
+
+if sys.version_info[:2] >= (3, 7):
+    import importlib.resources
+
+    def _resource_bytes(package, resource_name):
+        ref = importlib.resources.files(package).joinpath(resource_name)
+        with ref.open('rb') as fp:
+            return fp.read()
+else:
+    import pkg_resources
+
+    def _resource_bytes(package, resource_name):
+        return pkg_resources.resource_stream(package, resource_name).read()
 
 
 def _get_qt_app():
@@ -335,7 +348,7 @@ def ribbon():
     if disable_ribbon:
         return []
 
-    ribbon = pkg_resources.resource_string(__name__, "resources/ribbon.xml")
+    ribbon = _resource_bytes("pyxll_jupyter", "resources/ribbon.xml").decode("utf-8")
     return [
         (None, ribbon)
     ]
