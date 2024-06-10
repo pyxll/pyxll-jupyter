@@ -13,11 +13,11 @@
                         <menu id="menu">
                             <button id="PyXLLJupyterNotebook_CTP"
                                     label="Jupyter"
-                                    image="pyxll_jupyter:resources/jupyter.png"
+                                    image="pyxll_jupyter.resources:jupyter.png"
                                     onAction="pyxll_jupyter.pyxll.open_jupyter_notebook"/>
                             <button id="PyXLLJupyterNotebook_Browser"
                                     label="Open in Browser"
-                                    image="pyxll_jupyter:resources/browser.png"
+                                    image="pyxll_jupyter.resources:browser.png"
                                     onAction="pyxll_jupyter.pyxll.open_jupyter_notebook_in_browser"/>
                         </menu>
                     </splitButton>
@@ -30,7 +30,7 @@
             <button id="PyXLLJupyterSetSelection"
                     label="Send to Jupyter"
                     onAction="pyxll_jupyter.pyxll.set_selection_in_ipython"
-                    image="pyxll_jupyter:resources/jupyter.png"/>
+                    image="pyxll_jupyter.resources:jupyter.png"/>
         </contextMenu>
    </contextMenus>
 </customUI>

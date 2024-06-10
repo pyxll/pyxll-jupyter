@@ -26,9 +26,8 @@ if sys.version_info[:2] >= (3, 7):
     import importlib.resources
 
     def _resource_bytes(package, resource_name):
-        ref = importlib.resources.files(package).joinpath(resource_name)
-        with ref.open('rb') as fp:
-            return fp.read()
+        return importlib.resources.read_binary(package, resource_name)
+
 else:
     import pkg_resources
 
@@ -348,7 +347,7 @@ def ribbon():
     if disable_ribbon:
         return []
 
-    ribbon = _resource_bytes("pyxll_jupyter", "resources/ribbon.xml").decode("utf-8")
+    ribbon = _resource_bytes("pyxll_jupyter.resources", "ribbon.xml").decode("utf-8")
     return [
         (None, ribbon)
     ]
