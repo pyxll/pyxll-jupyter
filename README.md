@@ -50,7 +50,7 @@ to set all of these, only the ones you wish to change::
     storage_path =
 
     ; Other settings
-    timeout = 30
+    timeout = 60
     disable_ribbon = 0
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
@@ -77,7 +77,7 @@ the Qt browser's default cached data path.
 *storage_path* can be set to an existing folder for the browser to save persistent storage data. By default this will be
 the Qt browser's default persistent storage path.
 
-*timeout* is the maximum number of seconds to wait for the Jupyter server process to start up. If you
+*timeout* is the maximum number of seconds of inactivity to wait for when starting the Jupyter server process. If you
 are getting timeout errors then increasing this may help.
 
 If *disable_ribbon* is set then the ribbon button to start Jupyter will not be shown, however Jupyter

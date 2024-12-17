@@ -406,7 +406,7 @@ def _find_jupyter_cmd(subcommand="notebook"):
 def launch_jupyter(initial_path=None,
                    notebook_path=None,
                    subcommand="notebook",
-                   timeout=30,
+                   timeout=60,
                    no_browser=False):
     """Start the IPython kernel and launch a Jupyter notebook server as a child process.
 
@@ -514,6 +514,11 @@ def launch_jupyter(initial_path=None,
         matched_url = None
 
         while proc.poll() is None:
+            # Let the main thread know we're still alive
+            if matched_url is None:
+                url_queue.put(None)
+
+            # Get the next line from stdout and log it
             line = proc.stdout.readline().decode(encoding, "replace").strip()
             if not line:
                 continue
@@ -522,6 +527,7 @@ def launch_jupyter(initial_path=None,
                 continue
             _log.info(line)
 
+            # Look for the Jupyter URL
             if matched_url is None:
                 if next_line_is_url:
                     match = re.search(r"(?:^|\s)(https?://.*)$", line, re.IGNORECASE)
@@ -538,7 +544,7 @@ def launch_jupyter(initial_path=None,
 
         if matched_url is None and not killed_event.is_set():
             _log.error("Jupyter process ended without printing a URL.")
-            url_queue.put(None)
+            url_queue.put(False)
 
     url_queue = queue.Queue()
     killed_event = threading.Event()
@@ -547,13 +553,15 @@ def launch_jupyter(initial_path=None,
     thread.start()
 
     # Wait for the URL to be logged
+    url = None
     try:
-        url = url_queue.get(timeout=timeout)
+        while url is None:
+            url = url_queue.get(timeout=timeout)
     except queue.Empty:
         _log.error("Timed-out waiting for the Jupyter notebook URL.")
-        url = None
+        url = False
 
-    if url is None:
+    if not url:
         if proc.poll() is None:
             _log.debug("Killing Jupyter notebook process...")
             killed_event.set()
