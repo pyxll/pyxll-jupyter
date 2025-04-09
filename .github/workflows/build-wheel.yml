@@ -1,6 +1,7 @@
 name: Build wheel
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
     tags: [ "*" ]
