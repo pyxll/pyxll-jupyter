@@ -13,6 +13,7 @@ from ipykernel.kernelapp import IPKernelApp
 from ipykernel.embed import embed_kernel
 from pyxll import schedule_call, get_config
 import pyxll
+import time
 import importlib.util
 import subprocess
 import threading
@@ -20,6 +21,7 @@ import logging
 import ctypes
 import atexit
 import queue
+import uuid
 import zmq
 import sys
 import os
@@ -66,7 +68,16 @@ _subcommand_query_params = {
 }
 
 _log = logging.getLogger(__name__)
-_all_jupyter_processes = []
+_all_jupyter_processes = {}
+
+# Set to True if the kernel can be paused
+_pause_kernel = False
+_pause_kernal_condition = threading.Condition()
+
+# Dict of tokens retured from start_kernel to True or False, set
+# by pause_kernel and resume_kernel.
+_kernal_paused_state = {}
+
 
 try:
     # pywintypes needs to be imported before win32api for some Python installs.
@@ -169,10 +180,77 @@ class PushStdout:
         sys.stderr = self.__orig_stderr
 
 
+def release_kernel(token):
+    """Call when the Jupyter kernel created by launch_jupyter is no longer needed."""
+    _log.debug(f"Releasing kernel session {token}")
+
+    # Pause the kernel if it is no longer needed
+    pause_kernel(token)
+
+    # Remove it from the paused state dict
+    with _pause_kernal_condition:
+        _kernal_paused_state.pop(token, None)
+
+    # And kill any jupyter process associated with this token
+    proc = _all_jupyter_processes.pop(token, None)
+    if proc is not None:
+        kill_process(proc)
+
+
+def pause_kernel(token):
+    """Notifies that the kernel is not being used by a caller of start_kernel
+    and can be paused.
+
+    This will only cause the kernel to be paused once there are no callers
+    of start_kernel that need the kernel to be running.
+    """
+    global _pause_kernel
+
+    with _pause_kernal_condition:
+        _kernal_paused_state[token] = True
+        running_count = sum((1 for paused in _kernal_paused_state.values() if not paused))
+
+        if not _pause_kernel:
+            if running_count > 0:
+                _log.debug(f"Kernel cannot be paused for session {token} as other Jupyter sessions are active")
+            else:
+                _log.debug(f"Kernel paused by session {token}")
+
+        _pause_kernel = running_count == 0
+        _pause_kernal_condition.notify_all()
+
+
+def resume_kernel(token):
+    """Notifies that the kernel is required by a caller of start_kernel
+    and should be resumed, if currently paused.
+
+    """
+    global _pause_kernel
+
+    with _pause_kernal_condition:
+        _kernal_paused_state[token] = False
+
+        if _pause_kernel:
+            _log.debug(f"Kernel resumed by session {token}")
+
+        _pause_kernel = False
+        _pause_kernal_condition.notify_all()
+
+
 def start_kernel():
-    """starts the ipython kernel and returns the ipython app"""
+    """Starts the ipython kernel.
+
+    Returns the ipython app and a token to be used with release_kernel, 
+    pause_kernel and resume_kernel.
+
+    release_kernel should be called when the kernel is no longer needed.
+    """
+    token = uuid.uuid1()
+    _log.debug(f"Starting kernel session {token}.")
+
     if sys._ipython_app and sys._ipython_kernel_running:
-        return sys._ipython_app
+        resume_kernel(token)
+        return sys._ipython_app, token
 
     # The stdout/stderrs used by IPython. These get set after the kernel has started.
     ipy_stdout = sys.stdout
@@ -188,6 +266,8 @@ def start_kernel():
 
         # set up a timer to periodically poll the zmq ioloop
         self.loop = IOLoop.current()
+
+        poll_event = threading.Event()
 
         def poll_ioloop():
             try:
@@ -206,11 +286,30 @@ def start_kernel():
                     self.loop.start()
             except:
                 _log.error("Error polling Jupyter loop", exc_info=True)
+            finally:
+                poll_event.set()
 
-            schedule_call(poll_ioloop, delay=0.1)
+        def schedule_ioloop_polling():
+            while True:
+                with _pause_kernal_condition:
+                    if _pause_kernel > 0:
+                        _pause_kernal_condition.wait()
+                    paused = _pause_kernel
+
+                if not paused:
+                    # Call poll_ioloop on the main thread and wait for it to complete
+                    poll_event.clear()
+                    schedule_call(poll_ioloop)
+                    poll_event.wait()
+
+                    # Wait 0.1 seconds since the last poll
+                    time.sleep(0.1)
+
+        scheduler_thread = threading.Thread(target=schedule_ioloop_polling)
+        scheduler_thread.daemon = True
 
         sys._ipython_kernel_running = True
-        schedule_call(poll_ioloop, delay=0.1)
+        scheduler_thread.start()
 
     IPKernelApp.start = _IPKernelApp_start
 
@@ -257,7 +356,8 @@ def start_kernel():
         except ImportError:
             pass
 
-    return ipy
+    resume_kernel(token)
+    return ipy, token
 
 
 def _check_requirement(requirement):
@@ -410,11 +510,14 @@ def launch_jupyter(initial_path=None,
                    no_browser=False):
     """Start the IPython kernel and launch a Jupyter notebook server as a child process.
 
+    launch_jupyter must be called with the returned token when the kernel and Jupyter
+    server process are no longer required.
+
     :param initial_path: Directory to start Jupyter in
     :param notebook_path: Path of notebook to open.
     :param timeout: Timeout in seconds to wait for the Jupyter process to start.
     :param no_browser: Don't open a web browser if False.
-    :return: (Popen2 instance, URL string)
+    :return: (token, URL string)
     """
     notebook = None
     if notebook_path is not None:
@@ -424,7 +527,7 @@ def launch_jupyter(initial_path=None,
         notebook = os.path.basename(notebook_path)
 
     # Start the kernel and open Jupyter in a new tab
-    app = start_kernel()
+    app, token = start_kernel()
     connection_file = os.path.abspath(app.abs_connection_file)
     _log.debug(f"Kernel started with connection file '{connection_file}'")
 
@@ -504,8 +607,8 @@ def launch_jupyter(initial_path=None,
     if proc.poll() is not None:
         raise Exception("Command '%s' failed to start" % " ".join(cmd))
 
-    # Add it to the list of processes to be killed when Excel exits
-    _all_jupyter_processes.append(proc)
+    # Add it to the dict of processes to be killed when Excel exits
+    _all_jupyter_processes[token] = proc
 
     # Monitor the output of the process in a background thread
     def thread_func(proc, url_queue, killed_event):
@@ -566,7 +669,7 @@ def launch_jupyter(initial_path=None,
             _log.debug("Killing Jupyter notebook process...")
             killed_event.set()
             kill_process(proc)
-            _all_jupyter_processes.remove(proc)
+            del _all_jupyter_processes[token]
 
         if thread.is_alive():
             _log.debug("Waiting for background thread to complete...")
@@ -586,7 +689,7 @@ def launch_jupyter(initial_path=None,
 
     # Return the proc and url
     url = root + (("?" + "&".join(params)) if params else "")
-    return proc, url
+    return token, url
 
 
 def kill_process(proc):
@@ -676,6 +779,12 @@ def kill_process(proc):
 def _kill_jupyter_processes():
     """Ensure all Jupyter processes are killed."""
     global _all_jupyter_processes
-    for proc in _all_jupyter_processes:
+
+    for proc in _all_jupyter_processes.values():
         kill_process(proc)
-    _all_jupyter_processes = [x for x in _all_jupyter_processes if x.poll() is None]
+
+    _all_jupyter_processes = {
+        token: proc
+        for token, proc in _all_jupyter_processes.items()
+        if proc.poll() is None
+    }

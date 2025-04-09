@@ -2,9 +2,9 @@
 JupyterQtWidget is the widget that gets embedded in Excel and hosts
 a tabbed browser widget containing the Jupyter notebook.
 """
-from ..kernel import launch_jupyter, kill_process
+from ..kernel import launch_jupyter, release_kernel, pause_kernel, resume_kernel
 from .browser import Browser
-from .qtimports import QWidget, QVBoxLayout, qVersion
+from .qtimports import Qt, QApplication, QEvent, QWidget, QVBoxLayout, qVersion
 import logging
 import ctypes
 
@@ -20,11 +20,15 @@ class JupyterQtWidget(QWidget):
                  allow_cookies=True,
                  cache_path=None,
                  storage_path=None,
+                 pause_on_focus_lost=True,
                  **kwargs):
         super().__init__(parent)
+        self.__closed = False
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
         # proc gets set to the subprocess when the jupyter is started
         self.proc = None
+        self.token = None
 
         # Get the scale from the window DPI if using Qt5
         if scale is None:
@@ -40,6 +44,11 @@ class JupyterQtWidget(QWidget):
                     scale = ctypes.windll.gdi32.GetDeviceCaps(screen, LOGPIXELSX) / 96.0
                 finally:
                     ctypes.windll.user32.ReleaseDC(hwnd, screen)
+
+        self.__paused = False
+        self.__pause_on_focus_lost = pause_on_focus_lost
+        app = QApplication.instance()
+        app.installEventFilter(self)
 
         # Create the browser widget
         self.browser = Browser(self,
@@ -57,10 +66,32 @@ class JupyterQtWidget(QWidget):
         self.setLayout(layout)
 
         # Start the kernel and open Jupyter in a new tab
-        self.proc, url = launch_jupyter(no_browser=True, **kwargs)
+        self.token, url = launch_jupyter(no_browser=True, **kwargs)
         self.browser.create_tab(url)
 
     def closeEvent(self, event):
-        # Kill the Jupyter subprocess
-        if self.proc is not None:
-            kill_process(self.proc)
+        self.__closed = True
+
+        # Pause the kernel and kill the Jupyter subprocess
+        release_kernel(self.token)
+
+    def eventFilter(self, source, event):
+        # The source can be a QWindow wrapper of the native CTP window, but
+        # the underlying HWND will be the same.
+        if not self.__closed \
+        and self.__pause_on_focus_lost \
+        and source.isWindowType() \
+        and source.winId() == self.effectiveWinId():
+            if event.type() == QEvent.FocusIn:
+                if self.__paused:
+                    _log.debug(f"QEvent.FocusIn: Resuming kernel session {self.token}")
+                    resume_kernel(self.token)
+                    self.__paused = False
+
+            elif event.type() == QEvent.FocusOut:
+                if not self.__paused:
+                    _log.debug(f"QEvent.FocusOut: Pausing kernel session {self.token}")
+                    pause_kernel(self.token)
+                    self.__paused = True
+
+        return super().eventFilter(source, event)

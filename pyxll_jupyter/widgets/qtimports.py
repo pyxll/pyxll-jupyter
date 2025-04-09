@@ -40,7 +40,7 @@ for pkg in _qt_packages:
             from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
             from PySide6.QtWebEngineWidgets import QWebEngineView
             from PySide6.QtGui import QKeySequence, QShortcut
-            from PySide6.QtCore import QUrl, Qt, Signal, qVersion
+            from PySide6.QtCore import QUrl, QEvent, Qt, Signal, qVersion
             _log.debug("pyxll_jupyter:Using PySide6")
         elif pkg == "pyqt6":
             # Requires PyQt6 and PyQt6-WebEngine
@@ -48,7 +48,7 @@ for pkg in _qt_packages:
             from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
             from PyQt6.QtWebEngineWidgets import QWebEngineView
             from PyQt6.QtGui import QKeySequence, QShortcut
-            from PyQt6.QtCore import QUrl, Qt, qVersion
+            from PyQt6.QtCore import QUrl, QEvent, Qt, qVersion
             from PyQt6.QtCore import pyqtSignal as Signal
             _log.debug("pyxll_jupyter:Using PyQt6")
         elif pkg == "pyside2":
@@ -56,14 +56,14 @@ for pkg in _qt_packages:
             from PySide2.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QTabBar, QShortcut, QMessageBox
             from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
             from PySide2.QtGui import QKeySequence
-            from PySide2.QtCore import QUrl, Qt, Signal, qVersion
+            from PySide2.QtCore import QUrl, QEvent, Qt, Signal, qVersion
             _log.debug("pyxll_jupyter:Using PySide2")
         elif pkg == "pyqt5":
             # Requires PyQt5 and PyQt5-WebEngine
             from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QTabWidget, QTabBar, QShortcut, QMessageBox
             from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
             from PyQt5.QtGui import QKeySequence
-            from PyQt5.QtCore import QUrl, Qt, qVersion
+            from PyQt5.QtCore import QUrl, QEvent, Qt, qVersion
             from PyQt5.QtCore import pyqtSignal as Signal
             _log.debug("pyxll_jupyter:Using PyQt5")
         else:

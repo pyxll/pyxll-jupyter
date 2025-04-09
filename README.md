@@ -52,6 +52,7 @@ to set all of these, only the ones you wish to change::
     ; Other settings
     timeout = 60
     disable_ribbon = 0
+    pause_on_focus_lost = 1
 
 If *use_workbook_dir* is set and the current workbook is saved then Jupyter will open in the same folder
 as the current workbook.
@@ -82,6 +83,10 @@ are getting timeout errors then increasing this may help.
 
 If *disable_ribbon* is set then the ribbon button to start Jupyter will not be shown, however Jupyter
 may still be opened using the "OpenJupyterNotebook" macro.
+
+If *pause_on_focus_lost* is set then the Jupyter kernel will be paused whenever no Jupyter tasks panes are
+focused. If Jupyter is opened in a web browser this has no effect and the kernel will not be paused.
+
 
 ## Experimental JupyterLab Support
 
