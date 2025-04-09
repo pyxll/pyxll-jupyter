@@ -3,6 +3,7 @@ name: Build wheel
 on:
   push:
     branches: [ "master" ]
+    tags: [ "*" ]
   pull_request:
     branches: [ "master" ]
 
@@ -17,6 +18,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Update Environment
+      shell: pwsh
+      run: |
+        $env:IS_RELEASE_TAG = If ("${{ github.ref_name }}" -match "^\d+.\d+.\d+$") {'true'} Else {'false'}
+        echo "IS_RELEASE_TAG=$env:IS_RELEASE_TAG" >> $env:GITHUB_ENV
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
@@ -33,3 +41,14 @@ jobs:
         name: wheel
         path: |
           ./pyxll_jupyter-*-py3-none-any.whl
+
+    - name: Trigger Pypi upload
+      uses: peter-evans/repository-dispatch@v3
+      if: ${{ env.IS_RELEASE_TAG == 'true' }}
+      with:
+        event-type: pypi-upload
+        client-payload: |-
+          {
+            "run_id": "${{ github.run_id }}",
+            "ref_name": "${{ github.ref_name }}"
+          }
