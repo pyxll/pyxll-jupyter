@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxll_jupyter"
+version = "0.5.3"
+authors = [
+  { name="Tony Roberts", email="tony@pyxll.com" },
+]
+description = "Adds Jupyter notebooks to Microsoft Excel using PyXLL."
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: Microsoft :: Windows",
+]
+license = "MIT"
+license-files = ["LICENSE.md"]
+dependencies = [
+    "pyxll >= 5.1.0",
+    "jupyter >= 1.0.0",
+    "jupyter-client >= 6.0.0",
+    "notebook >= 6.0.0",
+    "packaging; python_version >= '3.10'",
+    "PySide2; python_version < '3.10'",
+    "PySide6 != 6.4.2; python_version >= '3.10' and platform_machine == 'x86_64'",
+    "PyQt5; python_version >= '3.10' and platform_machine != 'x86_64'",
+    "PyQtWebEngine; python_version >= '3.10' and platform_machine != 'x86_64'"
+]
+
+[project.urls]
+Repository = "https://github.com/pyxll/pyxll-jupyter"
+Issues = "https://github.com/pyxll/pyxll-jupyter/issues"
+
+[project.entry-points."pyxll"]
+modules = "pyxll_jupyter.pyxll:modules"
+ribbon = "pyxll_jupyter.pyxll:ribbon"
+
+[project.entry-points."jupyter_client.kernel_provisioners"]
+pyxll-provisioner = "pyxll_jupyter.provisioning:ExistingProvisioner"
+
+[tool.setuptools.package-data]
+pyxll_jupyter = [
+  "pyxll_jupyter/resources/ribbon.xml",
+  "pyxll_jupyter/resources/jupyter.png"
+]
