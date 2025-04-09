@@ -38,7 +38,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://test.pypi.org/p/pyxll-jupyter
+      url: https://pypi.org/p/pyxll-jupyter
 
     steps:
       - name: Retrieve release distributions
