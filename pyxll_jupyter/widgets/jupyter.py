@@ -67,6 +67,11 @@ class JupyterQtWidget(QWidget):
 
         # Start the kernel and open Jupyter in a new tab
         self.token, url = launch_jupyter(no_browser=True, **kwargs)
+
+        # Pause the kernel until we get the focus
+        if pause_on_focus_lost and not self.hasFocus():
+            self.pauseKernel()
+
         self.browser.create_tab(url)
 
     def closeEvent(self, event):
@@ -74,6 +79,20 @@ class JupyterQtWidget(QWidget):
 
         # Pause the kernel and kill the Jupyter subprocess
         release_kernel(self.token)
+
+    def pauseKernel(self):
+        """Maybe pause the kernel, if nothing else requires it."""
+        if not self.__paused:
+            _log.debug(f"Pausing kernel session {self.token}")
+            pause_kernel(self.token)
+            self.__paused = True
+
+    def resumeKernel(self):
+        """Resume the kernel, if not already running."""
+        if self.__paused:
+            _log.debug(f"Resuming kernel session {self.token}")
+            resume_kernel(self.token)
+            self.__paused = False
 
     def eventFilter(self, source, event):
         # The source can be a QWindow wrapper of the native CTP window, but
@@ -83,15 +102,9 @@ class JupyterQtWidget(QWidget):
         and source.isWindowType() \
         and source.winId() == self.effectiveWinId():
             if event.type() == QEvent.FocusIn:
-                if self.__paused:
-                    _log.debug(f"QEvent.FocusIn: Resuming kernel session {self.token}")
-                    resume_kernel(self.token)
-                    self.__paused = False
+                self.resumeKernel()
 
             elif event.type() == QEvent.FocusOut:
-                if not self.__paused:
-                    _log.debug(f"QEvent.FocusOut: Pausing kernel session {self.token}")
-                    pause_kernel(self.token)
-                    self.__paused = True
+                self.pauseKernel()
 
         return super().eventFilter(source, event)
