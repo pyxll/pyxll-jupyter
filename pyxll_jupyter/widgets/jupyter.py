@@ -97,10 +97,13 @@ class JupyterQtWidget(QWidget):
     def eventFilter(self, source, event):
         # The source can be a QWindow wrapper of the native CTP window, but
         # the underlying HWND will be the same.
-        if not self.__closed \
-        and self.__pause_on_focus_lost \
-        and source.isWindowType() \
-        and source.winId() == self.effectiveWinId():
+        if (
+            not self.__closed
+            and self.__pause_on_focus_lost
+            and source.isWindowType()
+            # winId and effectiveWinId are of type sip.voidptr which are not comparible in PyQt
+            and int(source.winId()) == int(self.effectiveWinId())
+        ):
             if event.type() == QEvent.FocusIn:
                 self.resumeKernel()
 
